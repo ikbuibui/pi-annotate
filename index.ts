@@ -3,11 +3,10 @@
  * @date 2026-05-15
  */
 
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, resolve } from "node:path";
 import { readFileSync, existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
-import { createRequire } from "node:module";
 import * as os from "node:os";
 import type {
   ExtensionAPI,
@@ -28,18 +27,32 @@ interface GlimpseWindow {
 let glimpseOpen: ((html: string, opts: Record<string, unknown>) => GlimpseWindow) | null | undefined;
 
 function findGlimpseMjs(): string | null {
-  try {
-    const req = createRequire(import.meta.url);
-    return req.resolve("glimpseui");
-  } catch {
-    // not in local node_modules
+  // 从当前模块目录向上逐级查找 node_modules/glimpseui/src/glimpse.mjs。
+  // 不用 createRequire().resolve()：omp 的扩展加载器会劫持 createRequire，
+  // 使其只认已注册模块而不查文件系统，导致包解析失败。
+  let dir = dirname(fileURLToPath(import.meta.url));
+  while (true) {
+    const candidate = resolve(dir, "node_modules", "glimpseui", "src", "glimpse.mjs");
+    if (existsSync(candidate)) return candidate;
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
   }
+  // npm 全局目录（README 推荐的 npm install -g 方式）
   try {
     const globalRoot = execFileSync("npm", ["root", "-g"], { encoding: "utf-8" }).trim();
     const entry = resolve(globalRoot, "glimpseui", "src", "glimpse.mjs");
     if (existsSync(entry)) return entry;
   } catch {
     // npm root -g failed
+  }
+  // bun 全局目录（bun add -g 安装位置）
+  try {
+    const bunRoot = resolve(os.homedir(), ".bun", "install", "global", "node_modules");
+    const entry = resolve(bunRoot, "glimpseui", "src", "glimpse.mjs");
+    if (existsSync(entry)) return entry;
+  } catch {
+    // homedir failed
   }
   return null;
 }
@@ -49,7 +62,8 @@ async function getGlimpseOpen(): Promise<typeof glimpseOpen> {
   const resolved = findGlimpseMjs();
   if (resolved) {
     try {
-      glimpseOpen = (await import(resolved)).open;
+      // 用 file:// URL 显式导入，兼容 pi 与 omp 两种扩展加载器
+      glimpseOpen = (await import(pathToFileURL(resolved).href)).open;
       return glimpseOpen;
     } catch {
       // import failed
