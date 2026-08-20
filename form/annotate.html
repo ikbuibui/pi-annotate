@@ -241,6 +241,16 @@
       padding: 0;
       border-radius: 0;
     }
+    .md-viewer .hljs-comment, .md-viewer .hljs-quote { color: var(--text-muted); font-style: italic; }
+    .md-viewer .hljs-keyword, .md-viewer .hljs-selector-tag, .md-viewer .hljs-type { color: var(--type-suggestion); }
+    .md-viewer .hljs-string, .md-viewer .hljs-regexp, .md-viewer .hljs-addition { color: var(--type-praise); }
+    .md-viewer .hljs-number, .md-viewer .hljs-literal { color: var(--warning); }
+    .md-viewer .hljs-title, .md-viewer .hljs-section, .md-viewer .hljs-name { color: var(--accent); }
+    .md-viewer .hljs-variable, .md-viewer .hljs-template-variable, .md-viewer .hljs-attr { color: var(--danger); }
+    .md-viewer .hljs-built_in, .md-viewer .hljs-symbol, .md-viewer .hljs-meta { color: var(--text-secondary); }
+    .md-viewer .hljs-deletion { color: var(--danger); }
+    .md-viewer .hljs-emphasis { font-style: italic; }
+    .md-viewer .hljs-strong { font-weight: 700; }
 
     .md-viewer blockquote {
       margin: 0.6em 0;

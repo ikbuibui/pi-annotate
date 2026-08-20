@@ -10,4 +10,5 @@ test("renders Markdown with annotation source offsets", () => {
   assert.match(html, /<table class="md-block"/);
   assert.match(html, /<div class="md-block"[^>]*><pre><code class="language-js">/);
   assert.match(html, /&lt;script&gt;x&lt;\/script&gt;/);
+  assert.match(renderMarkdown("```js\nconst answer = 42;\n```"), /<span class="hljs-keyword">const<\/span>/);
 });

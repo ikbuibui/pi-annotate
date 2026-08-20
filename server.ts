@@ -6,6 +6,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { randomUUID } from "node:crypto";
 import MarkdownIt, { type RendererRule } from "markdown-it";
+import hljs from "highlight.js/lib/common";
 
 export interface Annotation {
   id: string;
@@ -129,7 +130,14 @@ function safeInlineJSON(data: unknown): string {
     .replace(/&/g, "\\u0026");
 }
 
-const markdownRenderer = new MarkdownIt({ html: false });
+const markdownRenderer = new MarkdownIt({
+  html: false,
+  highlight(code, language) {
+    return language && hljs.getLanguage(language)
+      ? hljs.highlight(code, { language, ignoreIllegals: true }).value
+      : "";
+  },
+});
 const defaultFenceRenderer = markdownRenderer.renderer.rules.fence as RendererRule;
 const defaultImageRenderer = markdownRenderer.renderer.rules.image as RendererRule;
 
