@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -35,7 +35,7 @@
       --type-praise-bg: rgba(230, 192, 64, 0.12);
       --type-praise-border: rgba(230, 192, 64, 0.35);
 
-      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", Roboto, Helvetica, Arial, sans-serif;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       --font-mono: "SF Mono", "JetBrains Mono", "Fira Code", "Cascadia Code", Menlo, monospace;
       --radius: 8px;
       --radius-sm: 4px;
@@ -332,7 +332,7 @@
     .md-block[data-tooltip]:hover::after {
       display: block;
     }
-    /* 当批注块靠近视口顶部时，将 tooltip 翻转到下方避免被裁剪 */
+    /* Show tooltips below annotations near the viewport top to avoid clipping */
     .md-block.tooltip-below::after {
       bottom: auto;
       top: calc(100% + 4px);
@@ -708,7 +708,7 @@
       border-left: 2px solid var(--border-light);
     }
     .popup-original-preview::before {
-      content: "原文: ";
+      content: "Original text: ";
       font-size: 10px;
       color: var(--text-muted);
       text-transform: uppercase;
@@ -1044,20 +1044,20 @@
   </button>
 </div>
 <div class="ql-popover" id="qlPopover">
-  <button class="ql-item" data-ql="clarify"><span class="ql-emoji">❓</span> 需澄清说明<span class="ql-key">1</span></button>
-  <button class="ql-item" data-ql="missing"><span class="ql-emoji">📋</span> 缺少关键细节<span class="ql-key">2</span></button>
-  <button class="ql-item" data-ql="assumption"><span class="ql-emoji">🔍</span> 需要验证假设<span class="ql-key">3</span></button>
-  <button class="ql-item" data-ql="example"><span class="ql-emoji">🔬</span> 缺少具体示例<span class="ql-key">4</span></button>
-  <button class="ql-item" data-ql="tradeoff"><span class="ql-emoji">⚖️</span> 需权衡利弊<span class="ql-key">5</span></button>
-  <button class="ql-item" data-ql="over-eng"><span class="ql-emoji">🏗️</span> 过度设计<span class="ql-key">6</span></button>
-  <button class="ql-item" data-ql="scope"><span class="ql-emoji">🚫</span> 超出范围<span class="ql-key">7</span></button>
-  <button class="ql-item" data-ql="edge-case"><span class="ql-emoji">⚠️</span> 遗漏边界情况<span class="ql-key">8</span></button>
-  <button class="ql-item" data-ql="structure"><span class="ql-emoji">📐</span> 结构清晰<span class="ql-key">9</span></button>
-  <button class="ql-item" data-ql="nice"><span class="ql-emoji">👍</span> 方案不错<span class="ql-key">0</span></button>
+  <button class="ql-item" data-ql="clarify"><span class="ql-emoji">❓</span> Needs Clarification<span class="ql-key">1</span></button>
+  <button class="ql-item" data-ql="missing"><span class="ql-emoji">📋</span> Missing Details<span class="ql-key">2</span></button>
+  <button class="ql-item" data-ql="assumption"><span class="ql-emoji">🔍</span> Verify Assumption<span class="ql-key">3</span></button>
+  <button class="ql-item" data-ql="example"><span class="ql-emoji">🔬</span> Missing Example<span class="ql-key">4</span></button>
+  <button class="ql-item" data-ql="tradeoff"><span class="ql-emoji">⚖️</span> Trade-off Analysis<span class="ql-key">5</span></button>
+  <button class="ql-item" data-ql="over-eng"><span class="ql-emoji">🏗️</span> Over-engineered<span class="ql-key">6</span></button>
+  <button class="ql-item" data-ql="scope"><span class="ql-emoji">🚫</span> Out of Scope<span class="ql-key">7</span></button>
+  <button class="ql-item" data-ql="edge-case"><span class="ql-emoji">⚠️</span> Edge Case Missing<span class="ql-key">8</span></button>
+  <button class="ql-item" data-ql="structure"><span class="ql-emoji">📐</span> Well-structured<span class="ql-key">9</span></button>
+  <button class="ql-item" data-ql="nice"><span class="ql-emoji">👍</span> Good Approach<span class="ql-key">0</span></button>
 </div>
 <div class="creation-overlay" id="creationOverlay"></div>
 <div class="creation-popup" id="creationPopup" style="display:none;">
-  <h3>添加批注</h3>
+  <h3>Add Annotation</h3>
   <div class="type-selector" id="typeSelector">
     <button class="type-btn selected type-comment" data-type="comment">
       <svg class="type-icon comment" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/></svg>
@@ -1065,7 +1065,7 @@
     </button>
   </div>
   <div class="popup-original-preview" id="popupOriginal"></div>
-  <textarea id="annTextInput" placeholder="输入批注内容..." rows="3"></textarea>
+  <textarea id="annTextInput" placeholder="Enter annotation..." rows="3"></textarea>
   <div class="popup-actions">
     <button class="btn btn-secondary" id="popupCancel">Cancel</button>
     <button class="btn btn-primary" id="popupConfirm" disabled>Add Annotation</button>
@@ -1075,8 +1075,8 @@
 <!-- Confirm Dialog -->
 <div class="confirm-overlay" id="confirmOverlay">
   <div class="confirm-dialog">
-    <h3 id="confirmTitle">确认</h3>
-    <p id="confirmMessage">确定要执行此操作吗？</p>
+    <h3 id="confirmTitle">Confirm</h3>
+    <p id="confirmMessage">Are you sure?</p>
     <div class="confirm-actions">
       <button class="btn btn-secondary" id="confirmCancel">Cancel</button>
       <button class="btn btn-danger" id="confirmOk">Delete</button>
@@ -1789,7 +1789,7 @@
     popup.style.top = top + 'px';
     popup.style.display = 'block';
 
-    // focus 必须在 popup 显示（display: block）之后调用，否则 display:none 时 focus 无效
+    // Focus after display:block; hidden elements cannot receive focus
     textInput.focus();
   }
 
@@ -1860,16 +1860,16 @@
   /* ===== Quick Label Popover ===== */
 
   var qlLabels = [
-    { id: 'clarify', emoji: '❓', text: '需澄清说明' },
-    { id: 'missing', emoji: '📋', text: '缺少关键细节' },
-    { id: 'assumption', emoji: '🔍', text: '需要验证假设' },
-    { id: 'example', emoji: '🔬', text: '缺少具体示例' },
-    { id: 'tradeoff', emoji: '⚖️', text: '需权衡利弊' },
-    { id: 'over-eng', emoji: '🏗️', text: '过度设计' },
-    { id: 'scope', emoji: '🚫', text: '超出范围' },
-    { id: 'edge-case', emoji: '⚠️', text: '遗漏边界情况' },
-    { id: 'structure', emoji: '📐', text: '结构清晰' },
-    { id: 'nice', emoji: '👍', text: '方案不错' }
+    { id: 'clarify', emoji: '❓', text: 'Needs Clarification' },
+    { id: 'missing', emoji: '📋', text: 'Missing Details' },
+    { id: 'assumption', emoji: '🔍', text: 'Verify Assumption' },
+    { id: 'example', emoji: '🔬', text: 'Missing Example' },
+    { id: 'tradeoff', emoji: '⚖️', text: 'Trade-off Analysis' },
+    { id: 'over-eng', emoji: '🏗️', text: 'Over-engineered' },
+    { id: 'scope', emoji: '🚫', text: 'Out of Scope' },
+    { id: 'edge-case', emoji: '⚠️', text: 'Edge Case Missing' },
+    { id: 'structure', emoji: '📐', text: 'Well-structured' },
+    { id: 'nice', emoji: '👍', text: 'Good Approach' }
   ];
 
   document.getElementById('tbQuickLabel').addEventListener('click', function(e) {
@@ -1977,7 +1977,7 @@
   async function submitFeedback() {
     const body = {
       feedback: annotations.map(a =>
-        '- [' + a.type.toUpperCase() + '] ' + a.text + '\n  > 原文: "' + a.originalText + '"'
+        '- [' + a.type.toUpperCase() + '] ' + a.text + '\n  > Original text: "' + a.originalText + '"'
       ).join('\n\n'),
       annotations: annotations.map(a => ({
         id: a.id,
@@ -2051,8 +2051,8 @@
 
   /* ===== Keyboard Shortcuts ===== */
 
-  // 防止 tooltip 在视口顶部被裁剪：检测位置后动态翻转方向
-  // 创建隐藏的测量元素，用于动态计算 tooltip 实际高度
+  // Flip tooltips near the viewport top to avoid clipping.
+  // Use a hidden element to measure their rendered height.
   var _tooltipMeasure = document.createElement('div');
   _tooltipMeasure.style.cssText = 'position:fixed;visibility:hidden;pointer-events:none;' +
     'max-width:280px;padding:6px 10px;border:1px solid transparent;' +
@@ -2062,7 +2062,7 @@
     _tooltipMeasure.textContent = content || '';
     return _tooltipMeasure.offsetHeight + 4;  // gap between block and tooltip
   }
-  // 页面卸载时清理测量元素
+  // Remove the measurement element when the page unloads
   window.addEventListener('pagehide', function() {
     if (_tooltipMeasure && _tooltipMeasure.parentNode) {
       _tooltipMeasure.parentNode.removeChild(_tooltipMeasure);
@@ -2075,7 +2075,7 @@
   document.addEventListener('mouseover', function(e) {
     var block = e.target.closest('.md-block[data-tooltip]');
     if (block) {
-      if (block === _hoveredBlock) return;  // 同一块内移动子元素时跳过重复计算
+      if (block === _hoveredBlock) return;  // Skip recalculation within the same block
       _hoveredBlock = block;
       _tooltipHeightCached = _tooltipHeight(block.getAttribute('data-tooltip'));
       var rect = block.getBoundingClientRect();
@@ -2083,8 +2083,8 @@
     }
   });
   document.addEventListener('mouseout', function(e) {
-    // 使用 '.md-block' 而非 '.md-block[data-tooltip]' 避免 data-tooltip
-    // 被 highlightAnnotations() 移除后 class 无法清理的问题
+    // Match '.md-block' so the class can still be removed if
+    // highlightAnnotations() removes data-tooltip.
     var block = e.target.closest('.md-block');
     if (block && !block.contains(e.relatedTarget)) {
       block.classList.remove('tooltip-below');
@@ -2094,7 +2094,7 @@
       }
     }
   });
-  // 悬停时滚动重新评估位置
+  // Recalculate the position when scrolling during hover
   document.addEventListener('scroll', function() {
     if (_hoveredBlock && _hoveredBlock.hasAttribute('data-tooltip')) {
       var rect = _hoveredBlock.getBoundingClientRect();
@@ -2182,7 +2182,7 @@
         'Use the **Send Feedback** button at the bottom to submit your annotations to the server. ' +
         'Or use **Exit** to close without submitting.';
       planData = { plan: demoPlan, mode: 'annotate', sourceInfo: '(Demo Mode)' };
-      _hoveredBlock = null;  // 即将替换 DOM，清除悬停引用
+      _hoveredBlock = null;  // Clear the hover reference before replacing the DOM
       var contentDiv = document.getElementById('content');
       document.getElementById('loadingState').style.display = 'none';
       contentDiv.style.display = 'block';
@@ -2191,7 +2191,7 @@
     }
 
     // Render markdown
-    _hoveredBlock = null;  // 即将替换 DOM，清除悬停引用
+    _hoveredBlock = null;  // Clear the hover reference before replacing the DOM
     var contentDiv = document.getElementById('content');
     document.getElementById('loadingState').style.display = 'none';
     contentDiv.style.display = 'block';

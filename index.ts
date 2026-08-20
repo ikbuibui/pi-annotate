@@ -27,9 +27,9 @@ interface GlimpseWindow {
 let glimpseOpen: ((html: string, opts: Record<string, unknown>) => GlimpseWindow) | null | undefined;
 
 function findGlimpseMjs(): string | null {
-  // 从当前模块目录向上逐级查找 node_modules/glimpseui/src/glimpse.mjs。
-  // 不用 createRequire().resolve()：omp 的扩展加载器会劫持 createRequire，
-  // 使其只认已注册模块而不查文件系统，导致包解析失败。
+  // Search upward from this module for node_modules/glimpseui/src/glimpse.mjs.
+  // Avoid createRequire().resolve(): omp intercepts createRequire and only checks
+  // registered modules, so filesystem package resolution fails.
   let dir = dirname(fileURLToPath(import.meta.url));
   while (true) {
     const candidate = resolve(dir, "node_modules", "glimpseui", "src", "glimpse.mjs");
@@ -38,7 +38,7 @@ function findGlimpseMjs(): string | null {
     if (parent === dir) break;
     dir = parent;
   }
-  // npm 全局目录（README 推荐的 npm install -g 方式）
+  // Global npm directory (the installation method recommended in README)
   try {
     const globalRoot = execFileSync("npm", ["root", "-g"], { encoding: "utf-8" }).trim();
     const entry = resolve(globalRoot, "glimpseui", "src", "glimpse.mjs");
@@ -46,7 +46,7 @@ function findGlimpseMjs(): string | null {
   } catch {
     // npm root -g failed
   }
-  // bun 全局目录（bun add -g 安装位置）
+  // Global Bun directory (used by bun add -g)
   try {
     const bunRoot = resolve(os.homedir(), ".bun", "install", "global", "node_modules");
     const entry = resolve(bunRoot, "glimpseui", "src", "glimpse.mjs");
@@ -62,7 +62,7 @@ async function getGlimpseOpen(): Promise<typeof glimpseOpen> {
   const resolved = findGlimpseMjs();
   if (resolved) {
     try {
-      // 用 file:// URL 显式导入，兼容 pi 与 omp 两种扩展加载器
+      // Import via file URL for compatibility with both pi and omp loaders
       glimpseOpen = (await import(pathToFileURL(resolved).href)).open;
       return glimpseOpen;
     } catch {
@@ -87,7 +87,7 @@ function openInGlimpse(
   url: string,
   title?: string,
 ): GlimpseWindow {
-  const safeTitle = escapeHtml(title || "批注");
+  const safeTitle = escapeHtml(title || "Annotation");
   const shellHTML = `<!DOCTYPE html>
 <html>
 <head><meta charset="UTF-8"><title>${safeTitle}</title></head>
@@ -95,7 +95,7 @@ function openInGlimpse(
   <script>window.location.replace(${JSON.stringify(url)});</script>
 </body>
 </html>`;
-  return open(shellHTML, { width: 900, height: 750, title: title || "批注" });
+  return open(shellHTML, { width: 900, height: 750, title: title || "Annotation" });
 }
 
 async function openUrl(pi: ExtensionAPI, url: string): Promise<void> {
@@ -191,25 +191,25 @@ async function openAnnotationServer(
 
   let glimpseWin: GlimpseWindow | null = null;
 
-  // macOS 上优先 Glimpse，回退浏览器
+  // Prefer Glimpse on macOS, then fall back to the browser
   if (os.platform() === "darwin") {
     const glimpseOpenFn = await getGlimpseOpen();
     if (glimpseOpenFn) {
       try {
-        glimpseWin = openInGlimpse(glimpseOpenFn, server.url, `批注: ${options.sourceInfo}`);
-        ctx.ui.notify("批注窗口已打开，完成后关闭即可。", "info");
+        glimpseWin = openInGlimpse(glimpseOpenFn, server.url, `Annotate: ${options.sourceInfo}`);
+        ctx.ui.notify("Annotation window opened. Close it when done.", "info");
 
-        // 监听 Glimpse 窗口关闭事件 — 窗口关闭时直接决议退出，不依赖 HTTP fetch
+        // Resolve immediately when the Glimpse window closes instead of relying on HTTP
         let windowClosed = false;
         glimpseWin.on("closed", () => {
           windowClosed = true;
           server.resolveDecision({ action: "exit" });
         });
 
-        // 等待决策
+        // Wait for a decision
         const decision = await server.waitForDecision();
 
-        // 窗口关闭触发的 exit，静默处理
+        // Silently handle exits caused by closing the window
         if (decision.action === "exit" && windowClosed) {
           server.stop();
           return;
@@ -219,19 +219,19 @@ async function openAnnotationServer(
         server.stop();
         return;
       } catch (err) {
-        ctx.ui.notify(`Glimpse 失败，回退浏览器: ${err instanceof Error ? err.message : String(err)}`, "warning");
+        ctx.ui.notify(`Glimpse failed; falling back to browser: ${err instanceof Error ? err.message : String(err)}`, "warning");
       }
     }
   }
 
-  // 回退：浏览器打开
+  // Browser fallback
   try {
     await openUrl(pi, server.url);
     const decision = await server.waitForDecision();
     handleAnnotationDecision(pi, ctx, decision, options.sourceInfo, options.markdown);
     server.stop();
   } catch (err) {
-    ctx.ui.notify(`打开批注失败: ${err instanceof Error ? err.message : String(err)}`, "error");
+    ctx.ui.notify(`Failed to open annotation: ${err instanceof Error ? err.message : String(err)}`, "error");
   }
 }
 
@@ -245,11 +245,11 @@ function handleAnnotationDecision(
   switch (decision.action) {
     case "feedback": {
       let feedbackText = decision.feedback;
-      // 如果有结构化 annotations 但无 feedback 文本，生成格式化反馈
+      // Format structured annotations when no feedback text was provided
       if (!feedbackText && decision.annotations && decision.annotations.length > 0) {
         feedbackText = formatAnnotationFeedback(decision.annotations, sourceInfo);
       }
-      // 如果还没有反馈文本，使用默认格式
+      // Fall back to a default feedback message
       if (!feedbackText) {
         feedbackText = `## Annotation Feedback\n\nThe following feedback was provided for ${sourceInfo}. Please revise according to the suggestions above.`;
       }
@@ -257,10 +257,10 @@ function handleAnnotationDecision(
       break;
     }
     case "approve":
-      ctx.ui.notify(`${sourceInfo} 已批准`, "success");
+      ctx.ui.notify(`${sourceInfo} approved`, "success");
       break;
     case "exit":
-      // 静默关闭
+      // Close silently
       break;
   }
 }
@@ -271,20 +271,20 @@ export default function (pi: ExtensionAPI) {
   // ── Command: /annotate-last ──────────────────────────────────────────
 
   pi.registerCommand("annotate-last", {
-    description: "批注当前会话中最后一条 assistant 消息",
+    description: "Annotate the last assistant message in the current session",
     handler: async (_args: string, ctx: ExtensionCommandContext) => {
       const text = getLastAssistantMessageText(ctx);
       if (!text) {
-        ctx.ui.notify("未找到 assistant 消息", "error");
+        ctx.ui.notify("No assistant message found", "error");
         return;
       }
 
-      ctx.ui.notify("正在打开最后一条消息的批注...", "info");
+      ctx.ui.notify("Opening annotation for the last assistant message...", "info");
 
       return openAnnotationServer(pi, ctx, {
         markdown: text,
         mode: "annotate-last",
-        sourceInfo: "最后一条消息",
+        sourceInfo: "last assistant message",
       });
     },
   });
@@ -292,14 +292,14 @@ export default function (pi: ExtensionAPI) {
   // ── Command: /annotate <file> ────────────────────────────────────────
 
   pi.registerCommand("annotate", {
-    description: "批注指定的 markdown 文档",
+    description: "Annotate a markdown document",
     handler: async (args: string, ctx: ExtensionCommandContext) => {
       try {
         const filePath = args.trim().replace(/^@/, "");
 
 
         if (!filePath) {
-          ctx.ui.notify("用法: /annotate <file.md>", "error");
+          ctx.ui.notify("Usage: /annotate <file.md>", "error");
           return;
         }
 
@@ -307,11 +307,11 @@ export default function (pi: ExtensionAPI) {
 
 
         if (!existsSync(absolutePath)) {
-          ctx.ui.notify(`文件不存在: ${absolutePath}`, "error");
+          ctx.ui.notify(`File not found: ${absolutePath}`, "error");
           return;
         }
 
-        ctx.ui.notify(`正在打开 ${filePath} 的批注...`, "info");
+        ctx.ui.notify(`Opening annotation for ${filePath}...`, "info");
 
         const content = readFileSync(absolutePath, "utf-8");
 
@@ -321,22 +321,22 @@ export default function (pi: ExtensionAPI) {
           sourceInfo: filePath,
         });
       } catch (err) {
-        ctx.ui.notify(`批注失败: ${err instanceof Error ? err.message : String(err)}`, "error");
+        ctx.ui.notify(`Annotation failed: ${err instanceof Error ? err.message : String(err)}`, "error");
       }
     },
   });
 
-  // ── Hook: turn_end 自动检测 ──────────────────────────────────────────
+  // ── Hook: turn_end auto-detection ───────────────────────────────────
 
   pi.on("turn_end", async (event, ctx) => {
-    // 只处理 assistant 消息
+    // Only process assistant messages
     if (event.message.role !== "assistant") return;
 
     const parts = event.message.content.filter((c) => c.type === "text");
     const text = parts.map((c) => c.text).join("");
     if (!text) return;
 
-    // 匹配 docs/superpowers/ 下的文件路径
+    // Match file paths under docs/superpowers/
     const pattern = /docs\/superpowers\/(specs|plans)\/[^\s,.;:()!?]+\.md/g;
     const matches = text.match(pattern);
     if (!matches || matches.length === 0) return;
@@ -352,7 +352,7 @@ export default function (pi: ExtensionAPI) {
 
     if (!foundPath) return;
 
-    ctx.ui.notify("检测到新文档，正在打开批注...", "info");
+    ctx.ui.notify("New document detected; opening annotation...", "info");
 
     const content = readFileSync(foundPath, "utf-8");
     const htmlContent = await readAnnotateHtml();
@@ -366,12 +366,12 @@ export default function (pi: ExtensionAPI) {
         gate: false,
       });
 
-      // macOS 上优先 Glimpse
+      // Prefer Glimpse on macOS
       if (os.platform() === "darwin") {
         const glimpseOpenFn = await getGlimpseOpen();
         if (glimpseOpenFn) {
           try {
-            const glimpseWin = openInGlimpse(glimpseOpenFn, server.url, `批注: ${foundPath}`);
+            const glimpseWin = openInGlimpse(glimpseOpenFn, server.url, `Annotate: ${foundPath}`);
             let windowClosed = false;
             glimpseWin.on("closed", () => {
               windowClosed = true;
@@ -388,7 +388,7 @@ export default function (pi: ExtensionAPI) {
             server.stop();
             return;
           } catch {
-            // 回退浏览器
+            // Fall back to the browser
           }
         }
       }
@@ -398,7 +398,7 @@ export default function (pi: ExtensionAPI) {
       handleAnnotationDecision(pi, ctx, decision, foundPath, content);
       server.stop();
     } catch (err) {
-      console.error(`自动批注失败: ${err instanceof Error ? err.message : String(err)}`);
+      console.error(`Automatic annotation failed: ${err instanceof Error ? err.message : String(err)}`);
     }
   });
 }
