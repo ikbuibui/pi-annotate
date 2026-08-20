@@ -13,6 +13,9 @@
     "review",
     "extension"
   ],
+  "scripts": {
+    "test": "node --experimental-strip-types --test server.test.ts"
+  },
   "files": [
     "index.ts",
     "server.ts",
@@ -29,5 +32,8 @@
   "devDependencies": {
     "@earendil-works/pi-coding-agent": "^0.74.0",
     "@types/node": "^25.8.0"
+  },
+  "dependencies": {
+    "markdown-it": "^15.0.0"
   }
 }

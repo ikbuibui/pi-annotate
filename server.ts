@@ -5,6 +5,7 @@
 
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { randomUUID } from "node:crypto";
+import MarkdownIt, { type RendererRule } from "markdown-it";
 
 export interface Annotation {
   id: string;
@@ -128,10 +129,79 @@ function safeInlineJSON(data: unknown): string {
     .replace(/&/g, "\\u0026");
 }
 
+const markdownRenderer = new MarkdownIt({ html: false });
+const defaultFenceRenderer = markdownRenderer.renderer.rules.fence as RendererRule;
+const defaultImageRenderer = markdownRenderer.renderer.rules.image as RendererRule;
+
+markdownRenderer.renderer.rules.fence = (tokens, idx, options, env, renderer) => {
+  const offsets = tokens[idx].meta?.annotationOffsets;
+  const html = defaultFenceRenderer(tokens, idx, options, env, renderer);
+  if (!Array.isArray(offsets)) return html;
+  return `<div class="md-block" data-offset-start="${offsets[0]}" data-offset-end="${offsets[1]}">${html}</div>`;
+};
+
+markdownRenderer.renderer.rules.link_open = (tokens, idx, options, _env, renderer) => {
+  tokens[idx].attrSet("target", "_blank");
+  tokens[idx].attrSet("rel", "noopener");
+  return renderer.renderToken(tokens, idx, options);
+};
+
+markdownRenderer.renderer.rules.image = (tokens, idx, options, env, renderer) => {
+  tokens[idx].attrSet("loading", "lazy");
+  return defaultImageRenderer(tokens, idx, options, env, renderer);
+};
+
+function sourceLineOffsets(markdown: string): number[] {
+  const offsets = [0];
+  for (let i = 0; i < markdown.length; i++) {
+    if (markdown[i] === "\r") {
+      if (markdown[i + 1] === "\n") i++;
+      offsets.push(i + 1);
+    } else if (markdown[i] === "\n") {
+      offsets.push(i + 1);
+    }
+  }
+  return offsets;
+}
+
+export function renderMarkdown(markdown: string): string {
+  const env = {};
+  const tokens = markdownRenderer.parse(markdown, env);
+  const lineOffsets = sourceLineOffsets(markdown);
+  let listDepth = 0;
+
+  for (const token of tokens) {
+    if (token.type === "bullet_list_close" || token.type === "ordered_list_close") listDepth--;
+
+    const annotatable = token.type === "list_item_open" || (listDepth === 0 && (
+      token.type === "paragraph_open" || token.type === "heading_open" ||
+      token.type === "table_open" || token.type === "hr" ||
+      token.type === "fence" || token.type === "code_block"
+    ));
+
+    if (annotatable && token.map) {
+      const start = lineOffsets[token.map[0]] ?? markdown.length;
+      const end = lineOffsets[token.map[1]] ?? markdown.length;
+      if (token.type === "fence") {
+        token.meta = { ...token.meta, annotationOffsets: [start, end] };
+      } else {
+        token.attrJoin("class", "md-block");
+        token.attrSet("data-offset-start", start);
+        token.attrSet("data-offset-end", end);
+      }
+    }
+
+    if (token.type === "bullet_list_open" || token.type === "ordered_list_open") listDepth++;
+  }
+
+  return markdownRenderer.renderer.render(tokens, markdownRenderer.options, env);
+}
+
 export async function startAnnotationServer(
   options: AnnotationServerOptions
 ): Promise<AnnotationServerHandle> {
   const { markdown, htmlContent, mode, sourceInfo, gate } = options;
+  const renderedMarkdown = renderMarkdown(markdown);
   const sessionToken = randomUUID();
 
   let resolved = false;
@@ -189,6 +259,7 @@ export async function startAnnotationServer(
       if (method === "GET" && url.pathname === "/api/plan") {
         sendJson(res, 200, {
           plan: markdown,
+          html: renderedMarkdown,
           mode,
           sourceInfo: sourceInfo ?? null,
           gate: gate ?? false,
