@@ -30,7 +30,6 @@ Restart pi or run `/reload` to load the extension.
 
 - **Message Annotation**: Annotate the last assistant message with selected-text or overall-response feedback
 - **Document Annotation**: Open any markdown file (specs, plans, design docs) in a visual annotation UI
-- **Auto-Detect**: Opens the first existing spec/plan path mentioned in an assistant response under `docs/superpowers/specs/` or `docs/superpowers/plans/`
 - **Annotation Types**: Comment, Suggestion, Issue, and Praise — each with distinct color coding
 - **Quick Labels**: One-click preset labels for common feedback (needs clarification, missing details, verify assumption, etc.)
 - **Floating Toolbar**: Select text to reveal Comment, Suggestion, Issue, Delete, Quick Label, and Looks Good actions
@@ -45,16 +44,15 @@ Restart pi or run `/reload` to load the extension.
 
 ```
 ┌─────────┐     ┌──────────────────────────────────────┐     ┌─────────┐
-│  Agent  │     │     Glimpse / Browser Annotation UI   │     │  Agent  │
-│ writes  ├────►│                                      ├────►│receives │
-│  doc    │     │  select text → add annotation → send  │     │feedback │
-└─────────┘     │         ↑                             │     └─────────┘
-                │         └── auto-detect path ─────────┤
+│  User   │     │     Glimpse / Browser Annotation UI   │     │  Agent  │
+│ runs a  ├────►│                                      ├────►│receives │
+│ command │     │  select text → add annotation → send  │     │feedback │
+└─────────┘     │                                      │     └─────────┘
                 └──────────────────────────────────────┘
 ```
 
 **Lifecycle:**
-1. Agent writes a spec/plan document, or you run `/annotate <file>` or `/annotate-last`
+1. Run `/annotate <file>` or `/annotate-last`
 2. Local server starts → Glimpse window opens (macOS) or browser tab (elsewhere)
 3. Select text in the document → floating toolbar appears with annotation actions
 4. Add overall comments from the sidebar, or select text for Comment, Suggestion, Issue, Quick Label, Delete, or Praise
@@ -66,7 +64,7 @@ Restart pi or run `/reload` to load the extension.
 
 ## Usage
 
-The extension provides two slash commands and one auto-detection hook:
+The extension provides two slash commands:
 
 ### `/annotate-last`
 
@@ -91,10 +89,6 @@ Supports:
 - Relative paths (from current working directory)
 - Absolute paths
 - `@` prefix notation (e.g., `@docs/superpowers/specs/...`)
-
-### Auto-Detect
-
-A separate `turn_end` hook scans assistant text for paths under `docs/superpowers/specs/` or `docs/superpowers/plans/`. It resolves matches from the current working directory and opens the first path that exists. It is not a filesystem watcher and does not verify that the file was newly created or modified. `/annotate <file>` only opens the explicit path you provide.
 
 ## Annotation UI
 
