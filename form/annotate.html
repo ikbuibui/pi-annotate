@@ -1927,10 +1927,6 @@
     }
     window.addEventListener('beforeunload', notifyExit);
     window.addEventListener('pagehide', notifyExit);
-    // Also send initial heartbeat to mark this session as active
-    setInterval(function() {
-      try { fetch('/api/health', { method: 'GET', keepalive: true }); } catch {}
-    }, 60000);
   }
 
   init();

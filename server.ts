@@ -38,7 +38,6 @@ const MAX_BODY_SIZE = 5 * 1024 * 1024;
 const MAX_RETRIES = 5;
 const RETRY_DELAY_MS = 200;
 const REQUEST_TIMEOUT_MS = 30000;
-const STALE_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
 
 class BodyTooLargeError extends Error {
   statusCode = 413;
@@ -228,10 +227,7 @@ export async function startAnnotationServer(
     resolveDecision(result);
   };
 
-  let lastActivity = Date.now();
-
   const server = createServer(async (req, res) => {
-    lastActivity = Date.now();
     try {
       const method = req.method ?? "GET";
       const url = requestUrl(req);
@@ -363,27 +359,6 @@ export async function startAnnotationServer(
   }
 
   const url = `http://127.0.0.1:${port}`;
-
-  // Stale timeout: auto-exit when idle for too long
-  const staleTimer = setInterval(() => {
-    if (resolved) {
-      clearInterval(staleTimer);
-      return;
-    }
-    if (Date.now() - lastActivity > STALE_TIMEOUT_MS) {
-      resolveOnce({ action: "exit" });
-      clearInterval(staleTimer);
-    }
-  }, 30000);
-
-  const activeConnections = new Set<IncomingMessage>();
-  server.on("connection", (socket) => {
-    const req = socket as unknown as IncomingMessage;
-    activeConnections.add(req);
-    socket.on("close", () => {
-      activeConnections.delete(req);
-    });
-  });
 
   const handle: AnnotationServerHandle = {
     url,

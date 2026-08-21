@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { formatAnnotationFeedback } from "./feedback-format.ts";
 import { getAnnotationCandidates, getInitialAnnotationCandidateIndex } from "./message-tree.ts";
-import { renderMarkdown } from "./server.ts";
+import { renderMarkdown, startAnnotationServer } from "./server.ts";
 
 test("renders Markdown with annotation source offsets", () => {
   const html = renderMarkdown("Before\n# Heading\n\n- parent\n  - child\n\n| A | B |\n| - | - |\n| 1 | 2 |\n\n~~~js\nalert(1)\n~~~\n\n<script>x</script>");
@@ -13,6 +13,22 @@ test("renders Markdown with annotation source offsets", () => {
   assert.match(html, /<div class="md-block"[^>]*><pre><code class="language-js">/);
   assert.match(html, /&lt;script&gt;x&lt;\/script&gt;/);
   assert.match(renderMarkdown("```js\nconst answer = 42;\n```"), /<span class="hljs-keyword">const<\/span>/);
+});
+
+test("waits for an explicit exit decision", async () => {
+  const server = await startAnnotationServer({
+    markdown: "",
+    htmlContent: "__ANNOTATE_DATA__",
+    mode: "annotate",
+  });
+
+  try {
+    const response = await fetch(`${server.url}/api/exit`, { method: "POST", body: "{}" });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await server.waitForDecision(), { action: "exit" });
+  } finally {
+    server.stop();
+  }
 });
 
 test("builds an annotation tree from messages only", () => {

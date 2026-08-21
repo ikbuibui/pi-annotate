@@ -185,5 +185,5 @@ The ending is context-aware:
 ## Limits
 
 - Max 5MB request body for feedback submission
-- 2-minute idle timeout auto-closes the server
+- Sessions stay open until feedback, approval, exit, or a normal tab close
 - Single concurrent annotation session

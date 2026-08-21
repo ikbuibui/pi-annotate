@@ -183,9 +183,10 @@ async function openAnnotationServer(
     await openUrl(pi, server.url);
     const decision = await server.waitForDecision();
     handleAnnotationDecision(pi, ctx, decision, options.sourceInfo, options.markdown);
-    server.stop();
   } catch (err) {
     ctx.ui.notify(`Failed to open annotation: ${err instanceof Error ? err.message : String(err)}`, "error");
+  } finally {
+    server.stop();
   }
 }
 
