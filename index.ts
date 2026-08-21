@@ -3,10 +3,9 @@
  * @date 2026-05-15
  */
 
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { readFileSync, existsSync } from "node:fs";
-import { execFileSync } from "node:child_process";
 import * as os from "node:os";
 import type {
   ExtensionAPI,
@@ -15,89 +14,6 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import { formatAnnotationFeedback, type Annotation } from "./feedback-format.js";
 import { startAnnotationServer } from "./server.js";
-
-// ── Types ──────────────────────────────────────────────────────────────
-
-interface GlimpseWindow {
-  on(event: "closed", handler: () => void): void;
-  close(): void;
-}
-
-// ── Glimpse Integration ────────────────────────────────────────────────
-
-let glimpseOpen: ((html: string, opts: Record<string, unknown>) => GlimpseWindow) | null | undefined;
-
-function findGlimpseMjs(): string | null {
-  // Search upward from this module for node_modules/glimpseui/src/glimpse.mjs.
-  // Avoid createRequire().resolve(): omp intercepts createRequire and only checks
-  // registered modules, so filesystem package resolution fails.
-  let dir = dirname(fileURLToPath(import.meta.url));
-  while (true) {
-    const candidate = resolve(dir, "node_modules", "glimpseui", "src", "glimpse.mjs");
-    if (existsSync(candidate)) return candidate;
-    const parent = dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  // Global npm directory (the installation method recommended in README)
-  try {
-    const globalRoot = execFileSync("npm", ["root", "-g"], { encoding: "utf-8" }).trim();
-    const entry = resolve(globalRoot, "glimpseui", "src", "glimpse.mjs");
-    if (existsSync(entry)) return entry;
-  } catch {
-    // npm root -g failed
-  }
-  // Global Bun directory (used by bun add -g)
-  try {
-    const bunRoot = resolve(os.homedir(), ".bun", "install", "global", "node_modules");
-    const entry = resolve(bunRoot, "glimpseui", "src", "glimpse.mjs");
-    if (existsSync(entry)) return entry;
-  } catch {
-    // homedir failed
-  }
-  return null;
-}
-
-async function getGlimpseOpen(): Promise<typeof glimpseOpen> {
-  if (glimpseOpen !== undefined) return glimpseOpen;
-  const resolved = findGlimpseMjs();
-  if (resolved) {
-    try {
-      // Import via file URL for compatibility with both pi and omp loaders
-      glimpseOpen = (await import(pathToFileURL(resolved).href)).open;
-      return glimpseOpen;
-    } catch {
-      // import failed
-    }
-  }
-  glimpseOpen = null;
-  return glimpseOpen;
-}
-
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
-function openInGlimpse(
-  open: (html: string, opts: Record<string, unknown>) => GlimpseWindow,
-  url: string,
-  title?: string,
-): GlimpseWindow {
-  const safeTitle = escapeHtml(title || "Annotation");
-  const shellHTML = `<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"><title>${safeTitle}</title></head>
-<body style="margin:0; background:#1a1a2e;">
-  <script>window.location.replace(${JSON.stringify(url)});</script>
-</body>
-</html>`;
-  return open(shellHTML, { width: 900, height: 750, title: title || "Annotation" });
-}
 
 async function openUrl(pi: ExtensionAPI, url: string): Promise<void> {
   const platform = os.platform();
@@ -160,44 +76,7 @@ async function openAnnotationServer(
     gate: false,
   });
 
-
-
-  let glimpseWin: GlimpseWindow | null = null;
-
-  // Prefer Glimpse on macOS, then fall back to the browser
-  if (os.platform() === "darwin") {
-    const glimpseOpenFn = await getGlimpseOpen();
-    if (glimpseOpenFn) {
-      try {
-        glimpseWin = openInGlimpse(glimpseOpenFn, server.url, `Annotate: ${options.sourceInfo}`);
-        ctx.ui.notify("Annotation window opened. Close it when done.", "info");
-
-        // Resolve immediately when the Glimpse window closes instead of relying on HTTP
-        let windowClosed = false;
-        glimpseWin.on("closed", () => {
-          windowClosed = true;
-          server.resolveDecision({ action: "exit" });
-        });
-
-        // Wait for a decision
-        const decision = await server.waitForDecision();
-
-        // Silently handle exits caused by closing the window
-        if (decision.action === "exit" && windowClosed) {
-          server.stop();
-          return;
-        }
-
-        handleAnnotationDecision(pi, ctx, decision, options.sourceInfo, options.markdown);
-        server.stop();
-        return;
-      } catch (err) {
-        ctx.ui.notify(`Glimpse failed; falling back to browser: ${err instanceof Error ? err.message : String(err)}`, "warning");
-      }
-    }
-  }
-
-  // Browser fallback
+  // Open the annotation UI in the system browser.
   try {
     await openUrl(pi, server.url);
     const decision = await server.waitForDecision();

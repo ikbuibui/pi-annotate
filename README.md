@@ -1,6 +1,6 @@
 # pi-annotate
 
-A visual annotation extension for pi-agent that opens an interactive annotation UI for reviewing context messages and markdown documents. On macOS, uses [Glimpse](https://github.com/hazat/glimpse) to render in a native WKWebView window; falls back to a browser tab on other platforms.
+A visual annotation extension for pi-agent that opens an interactive annotation UI in your browser for reviewing context messages and markdown documents.
 
 <p align="center">
   <img src="docs/demo/annotation-ui.png" alt="pi-annotate annotation UI screenshot" width="100%">
@@ -24,7 +24,6 @@ Restart pi or run `/reload` to load the extension.
 
 **Requirements:**
 - pi-agent v0.35.0 or later (extensions API)
-- For native macOS window: `npm install -g glimpseui@">=0.8.1"` (optional, falls back to browser if not installed) — Glimpse 0.8.1+ required for native clipboard support (`⌘C`/`⌘V`)
 
 ## Features
 
@@ -38,29 +37,29 @@ Restart pi or run `/reload` to load the extension.
 - **Feedback Delivery**: Annotations are sent back to the agent as a structured follow-up message
 - **Approve Without Feedback**: When no annotations exist, approve documents directly
 - **Theme Toggle**: Switch between dark and light themes with `⌘+Shift+L` (`Ctrl+Shift+L` off macOS)
-- **Auto-Close**: Window closes automatically after submitting feedback or approving
+- **Submit Confirmation**: Shows confirmation after submitting feedback or approving
 
 ## How It Works
 
 ```
 ┌─────────┐     ┌──────────────────────────────────────┐     ┌─────────┐
-│  User   │     │     Glimpse / Browser Annotation UI   │     │  Agent  │
+│  User   │     │        Browser Annotation UI         │     │  Agent  │
 │ runs a  ├────►│                                      ├────►│receives │
-│ command │     │  select text → add annotation → send  │     │feedback │
+│ command │     │  select text → add annotation → send │     │feedback │
 └─────────┘     │                                      │     └─────────┘
                 └──────────────────────────────────────┘
 ```
 
 **Lifecycle:**
 1. Run `/annotate <file>` or `/annotate-last`
-2. Local server starts → Glimpse window opens (macOS) or browser tab (elsewhere)
+2. Local server starts → annotation UI opens in the system browser
 3. Select text in the document → floating toolbar appears with annotation actions
 4. Add overall comments from the sidebar, or select text for Comment, Suggestion, Issue, Quick Label, Delete, or Praise
 5. Session ends via:
    - **Send Feedback** → annotations sent back to agent as follow-up message
    - **Approve** → document approved, no feedback sent (available when no annotations exist)
-   - **Close window** → session ends without feedback
-6. Window closes automatically after sending feedback or approving
+   - **Close tab** → session ends without feedback
+6. After sending feedback or approving, the browser may keep the tab open.
 
 ## Usage
 
@@ -142,7 +141,7 @@ All annotations appear in the right sidebar panel. Use **Overall comment** there
 
 ```
 pi-annotate/
-├── index.ts              # Extension entry point, commands, Glimpse integration
+├── index.ts              # Extension entry point and commands
 ├── feedback-format.ts    # Model-feedback formatter
 ├── server.ts              # Annotation HTTP server (API routes)
 ├── form/

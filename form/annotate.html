@@ -1750,14 +1750,10 @@
     document.getElementById('btnFeedback').textContent = 'Submitted';
     document.getElementById('btnApprove').textContent = 'Approved';
 
-    // Notify server, then close window (same pattern as pi-interview-tool)
+    // Notify the server, then ask the browser to close this tab.
     setTimeout(function() {
       fetch('/api/exit', { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: '{}' }).catch(function(){});
-      if (window.glimpse && typeof window.glimpse.close === 'function') {
-        window.glimpse.close();
-      } else {
-        try { window.close(); } catch {}
-      }
+      try { window.close(); } catch {}
     }, 800);
   }
 
