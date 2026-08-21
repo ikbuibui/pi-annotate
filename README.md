@@ -30,7 +30,7 @@ Restart pi or run `/reload` to load the extension.
 
 - **Message Annotation**: Annotate the last assistant message with selected-text or overall-response feedback
 - **Document Annotation**: Open any markdown file (specs, plans, design docs) in a visual annotation UI
-- **Auto-Detect**: Automatically detects new spec/plan documents in `docs/superpowers/specs/` or `docs/superpowers/plans/` and opens the annotation UI
+- **Auto-Detect**: Opens the first existing spec/plan path mentioned in an assistant response under `docs/superpowers/specs/` or `docs/superpowers/plans/`
 - **Annotation Types**: Comment, Suggestion, Issue, and Praise — each with distinct color coding
 - **Quick Labels**: One-click preset labels for common feedback (needs clarification, missing details, verify assumption, etc.)
 - **Floating Toolbar**: Select text to reveal Comment, Suggestion, Issue, Delete, Quick Label, and Looks Good actions
@@ -94,7 +94,7 @@ Supports:
 
 ### Auto-Detect
 
-When an agent creates or modifies a file under `docs/superpowers/specs/` or `docs/superpowers/plans/`, the extension automatically detects the file path in the assistant's response and opens the annotation UI.
+A separate `turn_end` hook scans assistant text for paths under `docs/superpowers/specs/` or `docs/superpowers/plans/`. It resolves matches from the current working directory and opens the first path that exists. It is not a filesystem watcher and does not verify that the file was newly created or modified. `/annotate <file>` only opens the explicit path you provide.
 
 ## Annotation UI
 
@@ -149,6 +149,7 @@ All annotations appear in the right sidebar panel. Use **Overall comment** there
 ```
 pi-annotate/
 ├── index.ts              # Extension entry point, commands, Glimpse integration
+├── feedback-format.ts    # Model-feedback formatter
 ├── server.ts              # Annotation HTTP server (API routes)
 ├── form/
 │   └── annotate.html      # Annotation UI (pure HTML/CSS/JS, no build step)

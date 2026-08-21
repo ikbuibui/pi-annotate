@@ -13,7 +13,8 @@ import type {
   ExtensionContext,
   ExtensionCommandContext,
 } from "@earendil-works/pi-coding-agent";
-import { formatAnnotationFeedback, startAnnotationServer, type Annotation } from "./server.js";
+import { formatAnnotationFeedback, type Annotation } from "./feedback-format.js";
+import { startAnnotationServer } from "./server.js";
 
 // ── Types ──────────────────────────────────────────────────────────────
 

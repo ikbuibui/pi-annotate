@@ -18,6 +18,7 @@
   },
   "files": [
     "index.ts",
+    "feedback-format.ts",
     "server.ts",
     "form/"
   ],
@@ -30,7 +31,7 @@
     "@earendil-works/pi-coding-agent": "*"
   },
   "devDependencies": {
-    "@earendil-works/pi-coding-agent": "^0.74.0",
+    "@earendil-works/pi-coding-agent": "^0.84.2",
     "@types/node": "^25.8.0"
   },
   "dependencies": {

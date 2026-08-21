@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { formatAnnotationFeedback, renderMarkdown } from "./server.ts";
+import { formatAnnotationFeedback } from "./feedback-format.ts";
+import { renderMarkdown } from "./server.ts";
 
 test("renders Markdown with annotation source offsets", () => {
   const html = renderMarkdown("Before\n# Heading\n\n- parent\n  - child\n\n| A | B |\n| - | - |\n| 1 | 2 |\n\n~~~js\nalert(1)\n~~~\n\n<script>x</script>");
@@ -21,8 +22,15 @@ test("formats selected and overall annotation feedback", () => {
     id: "overall", type: "issue", scope: "overall", text: "Missing summary", originalText: "", range: null, createdAt: 0,
   }], "response");
 
-  assert.match(selection, /> Original text: "Details"/);
-  assert.match(selection, /Please revise according to the suggestions above\./);
+  assert.equal(selection, `## Annotation Feedback
+
+The following feedback was provided for response:
+
+- **suggestion**: Suggestion
+  > Original text: "Details"
+  Add an example
+
+Please revise according to the suggestions above.`);
   assert.match(overall, /> Applies to: Overall response/);
   assert.match(overall, /Please address the issues above\./);
 });
