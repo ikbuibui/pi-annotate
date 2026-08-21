@@ -33,8 +33,8 @@ Restart pi or run `/reload` to load the extension.
 - **Auto-Detect**: Automatically detects new spec/plan documents in `docs/superpowers/specs/` or `docs/superpowers/plans/` and opens the annotation UI
 - **Annotation Types**: Comment, Suggestion, Issue, and Praise — each with distinct color coding
 - **Quick Labels**: One-click preset labels for common feedback (needs clarification, missing details, verify assumption, etc.)
-- **Floating Toolbar**: Select text to reveal a compact toolbar with Comment, Delete, Quick Label, and Looks Good actions
-- **Inline Comment Popup**: Click Comment on the toolbar to add detailed text feedback directly above/below the selected text
+- **Floating Toolbar**: Select text to reveal Comment, Suggestion, Issue, Delete, Quick Label, and Looks Good actions
+- **Text Feedback Popups**: Comment, Suggestion, and Issue each open a focused text-entry popup
 - **Overall Comments**: Add comment feedback for the whole response from the annotation panel
 - **Feedback Delivery**: Annotations are sent back to the agent as a structured follow-up message
 - **Approve Without Feedback**: When no annotations exist, approve documents directly
@@ -57,7 +57,7 @@ Restart pi or run `/reload` to load the extension.
 1. Agent writes a spec/plan document, or you run `/annotate <file>` or `/annotate-last`
 2. Local server starts → Glimpse window opens (macOS) or browser tab (elsewhere)
 3. Select text in the document → floating toolbar appears with annotation actions
-4. Add an overall comment from the sidebar, or select text for Comment, Quick Label, Delete, or Praise
+4. Add overall comments from the sidebar, or select text for Comment, Suggestion, Issue, Quick Label, Delete, or Praise
 5. Session ends via:
    - **Send Feedback** → annotations sent back to agent as follow-up message
    - **Approve** → document approved, no feedback sent (available when no annotations exist)
@@ -105,6 +105,8 @@ Select any text to reveal a floating toolbar:
 | Button | Action | Description |
 |--------|--------|-------------|
 | 💬 Comment | Opens text input | Type detailed feedback about the selected text |
+| 💡 Suggestion | Opens text input | Propose an improvement for the selected text |
+| ⓘ Issue | Opens text input | Describe a problem in the selected text |
 | 🗑️ Delete | Creates issue annotation | Suggests removing the selected section |
 | ⚡ Quick Label | Opens preset picker | One-click labels for common feedback |
 | 👍 Looks Good | Creates praise annotation | Marks the selected text as good |
