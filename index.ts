@@ -14,7 +14,8 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import { formatAnnotationFeedback, type Annotation } from "./feedback-format.js";
 import { startAnnotationServer } from "./server.js";
-import { getAnnotationCandidates } from "./message-tree.js";
+import { truncateToWidth, type KeybindingsManager } from "@earendil-works/pi-tui";
+import { getAnnotationCandidates, getInitialAnnotationCandidateIndex, type AnnotationCandidate } from "./message-tree.js";
 
 async function openUrl(pi: ExtensionAPI, url: string): Promise<void> {
   const platform = os.platform();
@@ -47,6 +48,106 @@ function getLastAssistantMessageText(ctx: ExtensionContext): string | null {
     }
   }
   return null;
+}
+
+interface TreeTheme {
+  fg(color: "accent" | "success" | "muted" | "dim" | "warning" | "border", text: string): string;
+  bg(color: "selectedBg", text: string): string;
+  bold(text: string): string;
+}
+
+class AnnotationTreeSelector {
+  private selectedIndex: number;
+  private search = "";
+
+  constructor(
+    private readonly candidates: AnnotationCandidate[],
+    private readonly theme: TreeTheme,
+    private readonly keybindings: KeybindingsManager,
+    private readonly maxVisible: number,
+    private readonly onSelect: (candidate: AnnotationCandidate) => void,
+    private readonly onCancel: () => void,
+  ) {
+    this.selectedIndex = getInitialAnnotationCandidateIndex(candidates);
+  }
+
+  private filtered(): AnnotationCandidate[] {
+    const terms = this.search.toLowerCase().split(/\s+/).filter(Boolean);
+    return terms.length
+      ? this.candidates.filter((candidate) => {
+        const text = `${candidate.role} ${candidate.label ?? ""} ${candidate.text}`.toLowerCase();
+        return terms.every((term) => text.includes(term));
+      })
+      : this.candidates;
+  }
+
+  private move(amount: number): void {
+    const candidates = this.filtered();
+    this.selectedIndex = Math.max(0, Math.min(candidates.length - 1, this.selectedIndex + amount));
+  }
+
+  invalidate(): void {}
+
+  render(width: number): string[] {
+    const candidates = this.filtered();
+    const start = Math.max(0, Math.min(this.selectedIndex - Math.floor(this.maxVisible / 2), candidates.length - this.maxVisible));
+    const end = Math.min(start + this.maxVisible, candidates.length);
+    const border = this.theme.fg("border", "─".repeat(width));
+    const lines = [
+      border,
+      truncateToWidth(this.theme.fg("accent", this.theme.bold("  Annotation Tree")), width),
+      truncateToWidth(this.theme.fg("muted", `  Type to search${this.search ? `: ${this.search}` : ""}`), width),
+      border,
+    ];
+
+    if (!candidates.length) {
+      lines.push(truncateToWidth(this.theme.fg("muted", "  No messages found"), width));
+    }
+
+    for (let index = start; index < end; index++) {
+      const candidate = candidates[index];
+      const selected = index === this.selectedIndex;
+      const role = this.theme.fg(candidate.role === "user" ? "accent" : "success", `${candidate.role}: `);
+      const active = candidate.active ? this.theme.fg("accent", "• ") : "  ";
+      const label = candidate.label ? this.theme.fg("warning", `[${candidate.label}] `) : "";
+      let line = `${selected ? this.theme.fg("accent", "› ") : "  "}${this.theme.fg("dim", candidate.prefix)}${active}${label}${role}${candidate.preview}`;
+      if (selected) line = this.theme.bg("selectedBg", this.theme.bold(line));
+      lines.push(truncateToWidth(line, width));
+    }
+
+    lines.push(border);
+    lines.push(truncateToWidth(this.theme.fg("muted", `  (${candidates.length ? this.selectedIndex + 1 : 0}/${candidates.length})  ↑↓ move · ←→ page · enter annotate · esc cancel`), width));
+    lines.push(border);
+    return lines;
+  }
+
+  handleInput(data: string): void {
+    if (this.keybindings.matches(data, "tui.select.up")) {
+      this.move(-1);
+    } else if (this.keybindings.matches(data, "tui.select.down")) {
+      this.move(1);
+    } else if (this.keybindings.matches(data, "tui.select.pageUp") || this.keybindings.matches(data, "tui.editor.cursorLeft")) {
+      this.move(-this.maxVisible);
+    } else if (this.keybindings.matches(data, "tui.select.pageDown") || this.keybindings.matches(data, "tui.editor.cursorRight")) {
+      this.move(this.maxVisible);
+    } else if (this.keybindings.matches(data, "tui.select.confirm")) {
+      const candidate = this.filtered()[this.selectedIndex];
+      if (candidate) this.onSelect(candidate);
+    } else if (this.keybindings.matches(data, "tui.select.cancel")) {
+      if (this.search) {
+        this.search = "";
+        this.selectedIndex = getInitialAnnotationCandidateIndex(this.candidates);
+      } else {
+        this.onCancel();
+      }
+    } else if (this.keybindings.matches(data, "tui.editor.deleteCharBackward") && this.search) {
+      this.search = this.search.slice(0, -1);
+      this.selectedIndex = 0;
+    } else if (![...data].some((char) => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127)) {
+      this.search += data;
+      this.selectedIndex = 0;
+    }
+  }
 }
 
 // ── Shared annotation flow ─────────────────────────────────────────────
@@ -151,17 +252,40 @@ export default function (pi: ExtensionAPI) {
         const filePath = args.trim().replace(/^@/, "");
 
         if (!filePath) {
-          const candidates = getAnnotationCandidates(ctx.sessionManager.getTree());
+          const candidates = getAnnotationCandidates(
+            ctx.sessionManager.getTree(),
+            ctx.sessionManager.getLeafId(),
+          );
           if (!candidates.length) {
             ctx.ui.notify("No messages found", "error");
             return;
           }
 
-          const label = await ctx.ui.select(
-            "Select a message to annotate",
-            candidates.map((candidate) => candidate.label),
-          );
-          const selected = candidates.find((candidate) => candidate.label === label);
+          let selected: AnnotationCandidate | null | undefined;
+          if (ctx.mode === "tui") {
+            selected = await ctx.ui.custom<AnnotationCandidate | null>((tui, theme, keybindings, done) => {
+              const selector = new AnnotationTreeSelector(
+                candidates,
+                theme,
+                keybindings,
+                Math.max(5, Math.floor(tui.terminal.rows / 2)),
+                done,
+                () => done(null),
+              );
+              return {
+                render: (width) => selector.render(width),
+                invalidate: () => selector.invalidate(),
+                handleInput: (data) => {
+                  selector.handleInput(data);
+                  tui.requestRender();
+                },
+              };
+            });
+          } else {
+            const options = candidates.map((candidate) => `${candidate.prefix}${candidate.role}: ${candidate.preview} [${candidate.id}]`);
+            const choice = await ctx.ui.select("Select a message to annotate", options);
+            selected = candidates[options.indexOf(choice ?? "")];
+          }
           if (!selected) return;
 
           return openAnnotationServer(pi, ctx, {

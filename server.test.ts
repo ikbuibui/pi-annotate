@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { formatAnnotationFeedback } from "./feedback-format.ts";
-import { getAnnotationCandidates } from "./message-tree.ts";
+import { getAnnotationCandidates, getInitialAnnotationCandidateIndex } from "./message-tree.ts";
 import { renderMarkdown } from "./server.ts";
 
 test("renders Markdown with annotation source offsets", () => {
@@ -15,22 +15,28 @@ test("renders Markdown with annotation source offsets", () => {
   assert.match(renderMarkdown("```js\nconst answer = 42;\n```"), /<span class="hljs-keyword">const<\/span>/);
 });
 
-test("lists user and assistant messages in tree order", () => {
+test("builds an annotation tree from messages only", () => {
   const candidates = getAnnotationCandidates([{ entry: {
-    id: "root", type: "message", message: { role: "user", content: "First\nprompt" },
+    id: "root", parentId: null, type: "message", message: { role: "user", content: "First\nprompt" },
   }, children: [{ entry: {
-    id: "answer", type: "message", message: { role: "assistant", content: [{ type: "text", text: "First answer" }] },
+    id: "settings", parentId: "root", type: "custom",
+  }, children: [{ entry: {
+    id: "answer", parentId: "settings", type: "message", message: { role: "assistant", content: [{ type: "text", text: "First answer" }] },
   }, children: [
-    { entry: { id: "main", type: "message", message: { role: "user", content: "Main branch" } }, children: [] },
-    { entry: { id: "other", type: "message", message: { role: "user", content: "Alternate branch" } }, children: [] },
-  ] }] }]);
+    { entry: { id: "main", parentId: "answer", type: "message", message: { role: "user", content: "Main branch" } }, label: "chosen", children: [
+      { entry: { id: "leaf", parentId: "main", type: "message", message: { role: "toolResult", content: "ignored" } }, children: [] },
+    ] },
+    { entry: { id: "other", parentId: "answer", type: "message", message: { role: "user", content: "Alternate branch" } }, children: [] },
+  ] }] }] }], "leaf");
 
-  assert.deepEqual(candidates.map(({ id, label }) => ({ id, label })), [
-    { id: "root", label: "└─ user [root]: First prompt" },
-    { id: "answer", label: "   └─ assistant [answer]: First answer" },
-    { id: "main", label: "      ├─ user [main]: Main branch" },
-    { id: "other", label: "      └─ user [other]: Alternate branch" },
+  assert.deepEqual(candidates.map(({ id, prefix, active, label }) => ({ id, prefix, active, label })), [
+    { id: "root", prefix: "", active: true, label: undefined },
+    { id: "answer", prefix: "", active: true, label: undefined },
+    { id: "main", prefix: "├─ ", active: true, label: "chosen" },
+    { id: "other", prefix: "└─ ", active: false, label: undefined },
   ]);
+  assert.equal(candidates[0].preview, "First prompt");
+  assert.equal(getInitialAnnotationCandidateIndex(candidates), 2);
 });
 
 test("formats selected and overall annotation feedback", () => {
