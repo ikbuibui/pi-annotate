@@ -360,7 +360,11 @@
     }
 
     .panel-header {
-      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 10px 8px 14px;
       font-weight: 600;
       font-size: 13px;
       color: var(--text-secondary);
@@ -369,6 +373,19 @@
       border-bottom: 1px solid var(--border);
       flex-shrink: 0;
     }
+    .btn-overall-comment {
+      padding: 4px 7px;
+      border: 1px solid var(--type-comment-border);
+      border-radius: var(--radius-sm);
+      background: var(--type-comment-bg);
+      color: var(--type-comment);
+      font: inherit;
+      font-size: 10px;
+      letter-spacing: 0;
+      text-transform: none;
+      cursor: pointer;
+    }
+    .btn-overall-comment:hover { background: var(--bg-hover); }
 
     .panel-body {
       flex: 1;
@@ -662,39 +679,6 @@
       margin-bottom: 10px;
       color: var(--text-primary);
     }
-
-    .type-selector {
-      display: flex;
-      gap: 6px;
-      margin-bottom: 10px;
-      flex-wrap: wrap;
-    }
-
-    .type-btn {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      padding: 4px 12px;
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      background: var(--bg-primary);
-      color: var(--text-secondary);
-      font-size: 12px;
-      cursor: pointer;
-      transition: all 0.15s;
-    }
-    .type-btn:hover {
-      border-color: var(--border-light);
-      background: var(--bg-hover);
-    }
-    .type-btn.selected {
-      color: #fff;
-      border-color: transparent;
-    }
-    .type-btn.selected.type-comment { background: var(--type-comment); }
-    .type-btn.selected.type-suggestion { background: var(--type-suggestion); }
-    .type-btn.selected.type-issue { background: var(--type-issue); }
-    .type-btn.selected.type-praise { background: var(--type-praise); }
 
     .type-icon {
       width: 14px;
@@ -1017,7 +1001,7 @@
 
     <!-- Annotation Panel -->
     <div class="annotation-panel" id="annPanel">
-      <div class="panel-header">Annotations</div>
+      <div class="panel-header"><span>Annotations</span><button class="btn-overall-comment" id="btnOverallComment">Overall comment</button></div>
       <div class="panel-body" id="annList"></div>
     </div>
   </div>
@@ -1067,18 +1051,12 @@
 </div>
 <div class="creation-overlay" id="creationOverlay"></div>
 <div class="creation-popup" id="creationPopup" style="display:none;">
-  <h3>Add Annotation</h3>
-  <div class="type-selector" id="typeSelector">
-    <button class="type-btn selected type-comment" data-type="comment">
-      <svg class="type-icon comment" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/></svg>
-      Comment
-    </button>
-  </div>
+  <h3 id="creationTitle">Add Comment</h3>
   <div class="popup-original-preview" id="popupOriginal"></div>
-  <textarea id="annTextInput" placeholder="Enter annotation..." rows="3"></textarea>
+  <textarea id="annTextInput" placeholder="Enter comment..." rows="3"></textarea>
   <div class="popup-actions">
     <button class="btn btn-secondary" id="popupCancel">Cancel</button>
-    <button class="btn btn-primary" id="popupConfirm" disabled>Add Annotation</button>
+    <button class="btn btn-primary" id="popupConfirm" disabled>Add Comment</button>
   </div>
 </div>
 
@@ -1234,13 +1212,14 @@
     const ann = {
       id: generateId(),
       type: type,
+      scope: range ? 'selection' : 'overall',
       text: text.trim(),
-      originalText: range.textPreview,
-      range: {
+      originalText: range ? range.textPreview : '',
+      range: range ? {
         startOffset: range.startOffset,
         endOffset: range.endOffset,
         textPreview: range.textPreview
-      },
+      } : null,
       createdAt: Date.now()
     };
     annotations.unshift(ann);
@@ -1250,7 +1229,7 @@
   }
 
   function sortAnnotations() {
-    annotations.sort((a, b) => a.range.startOffset - b.range.startOffset);
+    annotations.sort((a, b) => (a.range ? a.range.startOffset : -1) - (b.range ? b.range.startOffset : -1));
   }
 
   function updateAnnotation(id, newText) {
@@ -1287,6 +1266,7 @@
     };
 
     annotations.forEach(ann => {
+      if (!ann.range) return;
       const cls = 'highlight-' + (typeColorMap[ann.type] || 'comment');
       blocks.forEach(block => {
         const blockStart = parseInt(block.dataset.offsetStart);
@@ -1314,7 +1294,7 @@
 
   function scrollToAnnotation(id) {
     const ann = annotations.find(a => a.id === id);
-    if (!ann) return;
+    if (!ann || !ann.range) return;
     const blocks = document.querySelectorAll('.md-block');
     for (const block of blocks) {
       const blockStart = parseInt(block.dataset.offsetStart);
@@ -1352,7 +1332,7 @@
         '<div class="empty-state">' +
         '<div class="icon">📝</div>' +
         '<div>No annotations yet</div>' +
-        '<div style="font-size:11px;">Select text in the content to add an annotation</div>' +
+        '<div style="font-size:11px;">Select text or add an overall comment</div>' +
         '</div>';
       return;
     }
@@ -1382,7 +1362,9 @@
         html += '<div class="ann-card-text">' + (ann.text ? escapeHtml(ann.text) : '<span class="empty-text">(empty)</span>') + '</div>';
       }
 
-      html += '<div class="ann-card-original" title="' + escapeHtml(ann.originalText) + '">' + escapeHtml(ann.originalText) + '</div>';
+      html += ann.scope === 'overall'
+        ? '<div class="ann-card-original">Overall response</div>'
+        : '<div class="ann-card-original" title="' + escapeHtml(ann.originalText) + '">' + escapeHtml(ann.originalText) + '</div>';
       html += '<div class="ann-card-time">' + formatTime(ann.createdAt) + '</div>';
       html += '</div>';
     });
@@ -1467,45 +1449,32 @@
 
   /* ===== Creation Popup ===== */
 
-  let selectedType = 'comment';
+  let popupRange = null;
   let popupActive = false;
 
-  function showCreationPopup(sel, range) {
+  function showCreationPopup(range) {
     hideFloatingToolbar();
-    selectedType = 'comment';
+    popupRange = range || null;
     popupActive = true;
 
-    // Set original text preview
-    document.getElementById('popupOriginal').textContent = pendingRange.textPreview;
+    const original = document.getElementById('popupOriginal');
+    original.style.display = popupRange ? 'block' : 'none';
+    original.textContent = popupRange ? popupRange.textPreview : '';
 
-    // Hide type selector - always comment from toolbar
-    var typeSel = document.getElementById('typeSelector');
-    if (typeSel) typeSel.style.display = 'none';
-
-    // Clear text input
     const textInput = document.getElementById('annTextInput');
     textInput.value = '';
-
-    // Disable confirm until text is entered
     document.getElementById('popupConfirm').disabled = true;
 
-    // Position popup near selection (no backdrop)
     var popup = document.getElementById('creationPopup');
     var popupWidth = 320;
     var popupHeight = 200;
     var left, top;
-
-    // Use stored selection rect when available (called from toolbar)
-    var rect = (range && typeof range.getBoundingClientRect === 'function')
-      ? range.getBoundingClientRect()
-      : (pendingRange && pendingRange.selRect);
+    var rect = popupRange && popupRange.selRect;
 
     if (rect) {
       left = rect.left + (rect.width / 2) - (popupWidth / 2);
       top = rect.bottom + 4;
-      if (top + popupHeight > window.innerHeight - 10) {
-        top = rect.top - popupHeight - 4;
-      }
+      if (top + popupHeight > window.innerHeight - 10) top = rect.top - popupHeight - 4;
     } else {
       left = (window.innerWidth - popupWidth) / 2;
       top = (window.innerHeight - popupHeight) / 2;
@@ -1518,8 +1487,6 @@
     popup.style.left = left + 'px';
     popup.style.top = top + 'px';
     popup.style.display = 'block';
-
-    // Focus after display:block; hidden elements cannot receive focus
     textInput.focus();
   }
 
@@ -1527,26 +1494,17 @@
     document.getElementById('creationPopup').style.display = 'none';
     document.getElementById('creationOverlay').classList.remove('active');
     popupActive = false;
+    popupRange = null;
     pendingRange = null;
   }
 
   function confirmCreation() {
-    if (!pendingRange) return;
     const text = document.getElementById('annTextInput').value.trim();
     if (!text) return;
 
-    addAnnotation(selectedType, text, pendingRange);
+    addAnnotation('comment', text, popupRange);
     hideCreationPopup();
   }
-
-  // Type selection
-  document.querySelectorAll('.type-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-      document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('selected'));
-      this.classList.add('selected');
-      selectedType = this.dataset.type;
-    });
-  });
 
   // Text input enabling confirm
   document.getElementById('annTextInput').addEventListener('input', function() {
@@ -1567,9 +1525,12 @@
 
   /* ===== Floating Toolbar Actions ===== */
 
+  document.getElementById('btnOverallComment').addEventListener('click', function() {
+    showCreationPopup(null);
+  });
+
   document.getElementById('tbComment').addEventListener('click', function() {
-    hideFloatingToolbar();
-    if (pendingRange) { showCreationPopup(null, pendingRange); }
+    if (pendingRange) showCreationPopup(pendingRange);
   });
 
   document.getElementById('tbDelete').addEventListener('click', function() {
@@ -1706,12 +1667,10 @@
 
   async function submitFeedback() {
     const body = {
-      feedback: annotations.map(a =>
-        '- [' + a.type.toUpperCase() + '] ' + a.text + '\n  > Original text: "' + a.originalText + '"'
-      ).join('\n\n'),
       annotations: annotations.map(a => ({
         id: a.id,
         type: a.type,
+        scope: a.scope,
         text: a.text,
         originalText: a.originalText,
         range: a.range,

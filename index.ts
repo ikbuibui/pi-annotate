@@ -13,7 +13,7 @@ import type {
   ExtensionContext,
   ExtensionCommandContext,
 } from "@earendil-works/pi-coding-agent";
-import { startAnnotationServer, type Annotation } from "./server.js";
+import { formatAnnotationFeedback, startAnnotationServer, type Annotation } from "./server.js";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -129,34 +129,6 @@ function getLastAssistantMessageText(ctx: ExtensionContext): string | null {
     }
   }
   return null;
-}
-
-function formatAnnotationFeedback(
-  annotations: Annotation[],
-  sourceInfo: string,
-): string {
-  if (!annotations || annotations.length === 0) return "";
-  const items = annotations
-    .map((a) => {
-      const tag = a.type === "comment" ? "Comment" : a.type === "suggestion" ? "Suggestion" : a.type === "issue" ? "Issue" : "Praise";
-      return `- **${a.type}**: ${tag}
-  > Original text: "${a.originalText || "(none)"}"
-  ${a.text}`;
-    })
-    .join("\n\n");
-
-  const hasIssues = annotations.some((a) => a.type === "issue");
-  const hasSuggestions = annotations.some((a) => a.type === "suggestion");
-  let ending: string;
-  if (hasIssues) {
-    ending = "Please address the issues above.";
-  } else if (hasSuggestions) {
-    ending = "Please revise according to the suggestions above.";
-  } else {
-    ending = "Please consider the feedback above.";
-  }
-
-  return `## Annotation Feedback\n\nThe following feedback was provided for ${sourceInfo}:\n\n${items}\n\n${ending}`;
 }
 
 // ── Shared annotation flow ─────────────────────────────────────────────

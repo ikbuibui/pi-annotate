@@ -28,13 +28,14 @@ Restart pi or run `/reload` to load the extension.
 
 ## Features
 
-- **Message Annotation**: Annotate the last assistant message with visual feedback — select text, add comments, and send feedback to the agent
+- **Message Annotation**: Annotate the last assistant message with selected-text or overall-response feedback
 - **Document Annotation**: Open any markdown file (specs, plans, design docs) in a visual annotation UI
 - **Auto-Detect**: Automatically detects new spec/plan documents in `docs/superpowers/specs/` or `docs/superpowers/plans/` and opens the annotation UI
 - **Annotation Types**: Comment, Suggestion, Issue, and Praise — each with distinct color coding
 - **Quick Labels**: One-click preset labels for common feedback (needs clarification, missing details, verify assumption, etc.)
 - **Floating Toolbar**: Select text to reveal a compact toolbar with Comment, Delete, Quick Label, and Looks Good actions
 - **Inline Comment Popup**: Click Comment on the toolbar to add detailed text feedback directly above/below the selected text
+- **Overall Comments**: Add comment feedback for the whole response from the annotation panel
 - **Feedback Delivery**: Annotations are sent back to the agent as a structured follow-up message
 - **Approve Without Feedback**: When no annotations exist, approve documents directly
 - **Theme Toggle**: Switch between dark and light themes with `⌘+Shift+L` (`Ctrl+Shift+L` off macOS)
@@ -56,7 +57,7 @@ Restart pi or run `/reload` to load the extension.
 1. Agent writes a spec/plan document, or you run `/annotate <file>` or `/annotate-last`
 2. Local server starts → Glimpse window opens (macOS) or browser tab (elsewhere)
 3. Select text in the document → floating toolbar appears with annotation actions
-4. Add annotations via Comment (text input), Quick Label (preset labels), Delete (suggest removal), or Praise (looks good)
+4. Add an overall comment from the sidebar, or select text for Comment, Quick Label, Delete, or Praise
 5. Session ends via:
    - **Send Feedback** → annotations sent back to agent as follow-up message
    - **Approve** → document approved, no feedback sent (available when no annotations exist)
@@ -99,7 +100,7 @@ When an agent creates or modifies a file under `docs/superpowers/specs/` or `doc
 
 ### Floating Toolbar
 
-Select any text to reveal a floating toolbar with four actions:
+Select any text to reveal a floating toolbar:
 
 | Button | Action | Description |
 |--------|--------|-------------|
@@ -127,10 +128,10 @@ Preset labels for common feedback on specs, plans, and messages:
 
 ### Annotation Panel
 
-All annotations appear in the right sidebar panel. Each annotation shows:
+All annotations appear in the right sidebar panel. Use **Overall comment** there to comment on the entire response. Each annotation shows:
 - Type badge with color coding (Comment/Suggestion/Issue/Praise)
 - Annotation text
-- Original selected text preview
+- Original selected text preview, or an Overall response marker
 - Timestamp
 - Edit (✏️) and Delete (🗑️) buttons
 
@@ -167,6 +168,9 @@ The following feedback was provided for docs/superpowers/specs/my-design.md:
 
 - **issue**: Error handling strategy is missing
   > Original text: "The system will return an error message on failure"
+
+- **comment**: The response should start with a short summary.
+  > Applies to: Overall response
 
 Please address the issues above.
 ```
