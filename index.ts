@@ -14,6 +14,7 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import { formatAnnotationFeedback, type Annotation } from "./feedback-format.js";
 import { startAnnotationServer } from "./server.js";
+import { getAnnotationCandidates } from "./message-tree.js";
 
 async function openUrl(pi: ExtensionAPI, url: string): Promise<void> {
   const platform = os.platform();
@@ -144,19 +145,33 @@ export default function (pi: ExtensionAPI) {
   // ── Command: /annotate <file> ────────────────────────────────────────
 
   pi.registerCommand("annotate", {
-    description: "Annotate a markdown document",
+    description: "Annotate a session message or markdown document",
     handler: async (args: string, ctx: ExtensionCommandContext) => {
       try {
         const filePath = args.trim().replace(/^@/, "");
 
-
         if (!filePath) {
-          ctx.ui.notify("Usage: /annotate <file.md>", "error");
-          return;
+          const candidates = getAnnotationCandidates(ctx.sessionManager.getTree());
+          if (!candidates.length) {
+            ctx.ui.notify("No messages found", "error");
+            return;
+          }
+
+          const label = await ctx.ui.select(
+            "Select a message to annotate",
+            candidates.map((candidate) => candidate.label),
+          );
+          const selected = candidates.find((candidate) => candidate.label === label);
+          if (!selected) return;
+
+          return openAnnotationServer(pi, ctx, {
+            markdown: selected.text,
+            mode: "annotate",
+            sourceInfo: `${selected.role} message ${selected.id}`,
+          });
         }
 
         const absolutePath = resolve(ctx.cwd, filePath);
-
 
         if (!existsSync(absolutePath)) {
           ctx.ui.notify(`File not found: ${absolutePath}`, "error");

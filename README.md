@@ -27,7 +27,7 @@ Restart pi or run `/reload` to load the extension.
 
 ## Features
 
-- **Message Annotation**: Annotate the last assistant message with selected-text or overall-response feedback
+- **Message Annotation**: Select any previous user or assistant message from the session tree, or annotate the last assistant message directly
 - **Document Annotation**: Open any markdown file (specs, plans, design docs) in a visual annotation UI
 - **Annotation Types**: Comment, Suggestion, Issue, and Praise — each with distinct color coding
 - **Quick Labels**: One-click preset labels for common feedback (needs clarification, missing details, verify assumption, etc.)
@@ -51,7 +51,7 @@ Restart pi or run `/reload` to load the extension.
 ```
 
 **Lifecycle:**
-1. Run `/annotate <file>` or `/annotate-last`
+1. Run `/annotate`, `/annotate <file>`, or `/annotate-last`
 2. Local server starts → annotation UI opens in the system browser
 3. Select text in the document → floating toolbar appears with annotation actions
 4. Add overall comments from the sidebar, or select text for Comment, Suggestion, Issue, Quick Label, Delete, or Praise
@@ -75,16 +75,22 @@ Annotate the last assistant message in the current session:
 
 Select text in the message, add annotations or quick labels, and send feedback to the agent.
 
-### `/annotate <file>`
+### `/annotate [file]`
 
-Annotate a specific markdown file:
+Without a file, select any previous user or assistant message from the session tree:
+
+```
+/annotate
+```
+
+With a file, annotate that markdown document:
 
 ```
 /annotate docs/superpowers/specs/my-design.md
 /annotate PLAN.md
 ```
 
-Supports:
+File paths support:
 - Relative paths (from current working directory)
 - Absolute paths
 - `@` prefix notation (e.g., `@docs/superpowers/specs/...`)

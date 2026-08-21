@@ -19,6 +19,7 @@
   "files": [
     "index.ts",
     "feedback-format.ts",
+    "message-tree.ts",
     "server.ts",
     "form/"
   ],
