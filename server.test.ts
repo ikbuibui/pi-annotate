@@ -481,6 +481,11 @@ test("tree marks survive filtering and open in tree order", () => {
 
   const fileSelector = new AnnotationTreeSelector(candidates, theme, keys as never, 5, (selected) => { opened = selected; }, () => {});
   fileSelector.handleInput("f");
+  assert.deepEqual(opened, { candidates: [], addFiles: true });
+
+  const markedFileSelector = new AnnotationTreeSelector(candidates, theme, keys as never, 5, (selected) => { opened = selected; }, () => {});
+  markedFileSelector.handleInput(" ");
+  markedFileSelector.handleInput("f");
   assert.deepEqual(opened, { candidates: [candidates[1]], addFiles: true });
 });
 

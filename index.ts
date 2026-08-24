@@ -135,8 +135,8 @@ export class AnnotationTreeSelector {
   }
 
   private select(addFiles = false): void {
-    const candidates = this.selectedCandidates();
-    if (candidates.length) this.onSelect({ candidates, addFiles });
+    const candidates = addFiles && !this.markedIds.size ? [] : this.selectedCandidates();
+    if (candidates.length || addFiles) this.onSelect({ candidates, addFiles });
   }
 
   invalidate(): void {}
@@ -478,7 +478,7 @@ export default function (pi: ExtensionAPI) {
             const candidate = candidates[options.indexOf(choice ?? "")];
             selection = candidate ? { candidates: [candidate], addFiles: false } : null;
           }
-          if (!selection?.candidates.length) return;
+          if (!selection || (!selection.candidates.length && !selection.addFiles)) return;
 
           const documents = selection.candidates.map((candidate) => ({
             ...messageDocument(candidate),
@@ -496,11 +496,14 @@ export default function (pi: ExtensionAPI) {
               }
             }
           }
-          const preview = selection.candidates[0].preview.length > 80 ? `${selection.candidates[0].preview.slice(0, 80)}…` : selection.candidates[0].preview;
+          if (!documents.length) return;
+          const preview = selection.candidates[0]?.preview;
           return openAnnotationServer(pi, ctx, {
             documents,
             mode: "annotate",
-            notificationTarget: `${documents.length} source${documents.length === 1 ? "" : "s"}: “${preview}”`,
+            notificationTarget: preview
+              ? `${documents.length} source${documents.length === 1 ? "" : "s"}: “${preview.length > 80 ? `${preview.slice(0, 80)}…` : preview}”`
+              : `file${documents.length === 1 ? "" : "s"}: ${documents.map((document) => document.title).join(", ")}`,
           }, reviewGate);
         }
 

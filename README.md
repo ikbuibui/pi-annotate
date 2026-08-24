@@ -167,7 +167,7 @@ All annotations appear in the right sidebar panel with their source title. Every
 | `↑` / `↓` | Move focus |
 | `Space` | Mark or unmark the focused message |
 | `Enter` | **Open review** for marked messages, or the focused message when none are marked |
-| `f` | Add files after selected messages; `Tab` completes paths |
+| `f` | Add files; opens a file-only review unless messages are marked; `Tab` completes paths |
 | `/` | Search messages |
 | `Esc` | Clear active search, or cancel |
 
