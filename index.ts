@@ -166,6 +166,7 @@ async function openAnnotationServer(
     markdown: string;
     mode: "annotate" | "annotate-last";
     sourceInfo: string;
+    notificationTarget?: string;
   },
 ): Promise<void> {
   const htmlContent = await readAnnotateHtml();
@@ -181,6 +182,14 @@ async function openAnnotationServer(
   // Open the annotation UI in the system browser.
   try {
     await openUrl(pi, server.url);
+    ctx.ui.notify(
+      [
+        `Annotation review opened for: ${options.notificationTarget ?? options.sourceInfo}`,
+        "Terminal input is paused until the review is completed.",
+        "Send feedback, approve, or close the tab to continue.",
+      ].join("\n"),
+      "info",
+    );
     const decision = await server.waitForDecision();
     handleAnnotationDecision(pi, ctx, decision, options.sourceInfo, options.markdown);
   } catch (err) {
@@ -234,12 +243,11 @@ export default function (pi: ExtensionAPI) {
         return;
       }
 
-      ctx.ui.notify("Opening annotation for the last assistant message...", "info");
-
       return openAnnotationServer(pi, ctx, {
         markdown: text,
         mode: "annotate-last",
         sourceInfo: "last assistant message",
+        notificationTarget: "last assistant message",
       });
     },
   });
@@ -289,10 +297,12 @@ export default function (pi: ExtensionAPI) {
           }
           if (!selected) return;
 
+          const preview = selected.preview.length > 80 ? `${selected.preview.slice(0, 80)}…` : selected.preview;
           return openAnnotationServer(pi, ctx, {
             markdown: selected.text,
             mode: "annotate",
             sourceInfo: `${selected.role} message ${selected.id}`,
+            notificationTarget: `${selected.role} message: “${preview}”`,
           });
         }
 
@@ -303,14 +313,13 @@ export default function (pi: ExtensionAPI) {
           return;
         }
 
-        ctx.ui.notify(`Opening annotation for ${filePath}...`, "info");
-
         const content = readFileSync(absolutePath, "utf-8");
 
         return openAnnotationServer(pi, ctx, {
           markdown: content,
           mode: "annotate",
           sourceInfo: filePath,
+          notificationTarget: `file: ${filePath}`,
         });
       } catch (err) {
         ctx.ui.notify(`Annotation failed: ${err instanceof Error ? err.message : String(err)}`, "error");
