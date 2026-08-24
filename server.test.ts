@@ -96,6 +96,28 @@ test("renders Markdown with annotation source offsets", () => {
   assert.match(renderMarkdown("```js\nconst answer = 42;\n```"), /<span class="hljs-keyword">const<\/span>/);
 });
 
+test("highlights recognized code files while preserving Markdown files", async () => {
+  const server = await startAnnotationServer({
+    documents: [
+      document("app.ts", "const answer = 42;"),
+      document("CVec.hpp", "#include <vector>"),
+      document("page.html", "<script>alert(1)</script>"),
+      document("README.md", "# Heading"),
+    ],
+    htmlContent: "", mode: "annotate",
+  });
+  try {
+    const { documents } = await (await fetch(`${server.url}/api/plan`)).json() as { documents: Array<{ id: string; html: string }> };
+    assert.match(documents[0].html, /data-offset-start="0" data-offset-end="18"/);
+    assert.match(documents[0].html, /class="hljs language-typescript"/);
+    assert.match(documents[0].html, /hljs-keyword">const/);
+    assert.match(documents[1].html, /class="hljs language-cpp"/);
+    assert.match(documents[2].html, /&lt;<span class="hljs-name">script<\/span>&gt;/);
+    assert.doesNotMatch(documents[2].html, /<script>/);
+    assert.match(documents[3].html, /<h1 class="md-block"[^>]*>Heading<\/h1>/);
+  } finally { server.stop(); }
+});
+
 test("loads valid user theme palettes", () => {
   const directory = mkdtempSync(join(tmpdir(), "pi-annotate-themes-"));
   try {

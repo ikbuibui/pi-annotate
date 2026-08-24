@@ -124,6 +124,25 @@ function safeInlineJSON(data: unknown): string {
     .replace(/&/g, "\\u0026");
 }
 
+function detectFileLanguage(path: string): string | null {
+  const name = path.split(/[\\/]/).pop()?.toLowerCase() ?? "";
+  const language = ({
+    js: "javascript", jsx: "javascript", ts: "typescript", tsx: "typescript",
+    py: "python", rb: "ruby", php: "php", java: "java", kt: "kotlin", go: "go", rs: "rust",
+    c: "c", cc: "cpp", cpp: "cpp", cxx: "cpp", h: "cpp", hh: "cpp", hpp: "cpp", hxx: "cpp",
+    cs: "csharp", swift: "swift", sh: "bash", bash: "bash", zsh: "bash", fish: "bash",
+    json: "json", yaml: "yaml", yml: "yaml", toml: "toml", xml: "xml", html: "xml", css: "css",
+    sql: "sql", diff: "diff", patch: "diff",
+  } as Record<string, string>)[name.split(".").pop() ?? ""] ??
+    ({ dockerfile: "dockerfile", makefile: "makefile" } as Record<string, string>)[name];
+  return language && hljs.getLanguage(language) ? language : null;
+}
+
+function renderCodeFile(code: string, language: string): string {
+  const html = hljs.highlight(code, { language, ignoreIllegals: true }).value;
+  return `<div class="md-block code-file" data-offset-start="0" data-offset-end="${code.length}"><pre><code class="hljs language-${language}">${html}</code></pre></div>`;
+}
+
 const markdownRenderer = new MarkdownIt({
   html: false,
   highlight(code, language) {
@@ -204,7 +223,10 @@ export async function startAnnotationServer(
 ): Promise<AnnotationServerHandle> {
   const { documents, htmlContent, mode, gate, themes = [], assets = {}, preferencePath } = options;
   if (!documents.length) throw new Error("At least one annotation document is required");
-  const renderedDocuments = documents.map((document) => ({ ...document, html: renderMarkdown(document.markdown) }));
+  const renderedDocuments = documents.map((document) => {
+    const language = document.kind === "file" && !/\.md(?:own)?$/i.test(document.title) && detectFileLanguage(document.title);
+    return { ...document, html: language ? renderCodeFile(document.markdown, language) : renderMarkdown(document.markdown) };
+  });
   const sessionToken = randomUUID();
 
   let resolved = false;
