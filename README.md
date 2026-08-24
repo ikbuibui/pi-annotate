@@ -139,7 +139,7 @@ Preset labels for common feedback on specs, plans, and messages:
 
 ### Annotation Panel
 
-All annotations appear in the right sidebar panel with their source title. Message sections are visually grouped as cards and can collapse their content and diffs without hiding their section comment action. Each source section has **Overall comment for this section**; use **Full review comment** in the bottom action bar for feedback that applies across all sources. For a one-source review, only **Overall comment** is shown. Each annotation shows:
+All annotations appear in the right sidebar panel with their source title. Every message and file is a separate collapsible source card with its content, diffs, and section comment action. In a multi-source review, click **N sources** in the top-left bar to jump to any message or file. Each source section has **Overall comment for this section**; use **Full review comment** in the bottom action bar for feedback that applies across all sources. For a one-source review, only **Overall comment** is shown. Each annotation shows:
 - Type badge with color coding (Comment/Suggestion/Issue/Praise)
 - Annotation text
 - Original selected text preview, or its section/full-review scope

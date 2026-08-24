@@ -90,13 +90,40 @@
       flex: 1;
     }
 
+    .source-navigation { position: relative; min-width: 0; }
     .source-info {
+      appearance: none;
+      border: 0;
+      background: none;
       color: var(--text-secondary);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      font: inherit;
       font-size: 12px;
+      cursor: pointer;
+      padding: 4px 6px;
+      border-radius: var(--radius-sm);
     }
+    .source-info:hover, .source-info:focus-visible { color: var(--text-primary); background: var(--bg-hover); outline: none; }
+    .source-popover {
+      position: absolute;
+      z-index: 600;
+      top: calc(100% + 6px);
+      left: 0;
+      width: min(360px, calc(100vw - 32px));
+      max-height: min(60vh, 420px);
+      overflow-y: auto;
+      padding: 6px;
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius);
+      background: var(--bg-secondary);
+      box-shadow: var(--shadow);
+    }
+    .source-popover[hidden] { display: none; }
+    .source-menu-item { display: flex; align-items: center; gap: 8px; width: 100%; border: 0; border-radius: var(--radius-sm); background: none; color: var(--text-primary); cursor: pointer; padding: 8px; text-align: left; }
+    .source-menu-item:hover, .source-menu-item:focus-visible { background: var(--bg-hover); outline: none; }
+    .source-menu-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
     .status-bar-right {
       display: flex;
@@ -311,15 +338,15 @@
       background: rgba(255,255,255,0.02);
     }
 
-    .annotation-document { margin-bottom: 32px; }
+    .annotation-document { margin-bottom: 32px; border: 1px solid var(--border-light); border-radius: var(--radius); background: var(--bg-secondary); box-shadow: var(--shadow); overflow: hidden; scroll-margin-top: 16px; transition: box-shadow .2s, border-color .2s; }
     .annotation-document:last-child { margin-bottom: 0; }
-    .annotation-document--message { margin-bottom: 40px; border: 1px solid var(--border-light); border-radius: var(--radius); background: var(--bg-secondary); box-shadow: var(--shadow); overflow: hidden; }
-    .document-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 12px; }
-    .annotation-document--message .document-header { margin: 0; padding: 10px 14px; background: var(--bg-tertiary); }
-    .annotation-document--message .document-body { padding: 4px 16px 16px; background: var(--bg-secondary); }
+    .annotation-document.is-source-target { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent), var(--shadow); }
+    .document-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; background: var(--bg-tertiary); }
+    .document-body { padding: 4px 16px 16px; background: var(--bg-secondary); }
     .document-header h2 { font-size: 1.15em; margin: 0; }
     .document-title { display: flex; align-items: center; gap: 6px; min-width: 0; }
-    .message-badge { padding: 1px 7px; border: 1px solid var(--border-light); border-radius: 10px; color: var(--text-secondary); font-size: 10px; font-weight: 600; letter-spacing: .4px; text-transform: uppercase; }
+    .source-badge { padding: 1px 7px; border: 1px solid var(--border-light); border-radius: 10px; color: var(--text-secondary); font-size: 10px; font-weight: 600; letter-spacing: .4px; text-transform: uppercase; flex-shrink: 0; }
+    .source-badge--file { color: var(--accent); }
     .document-collapse-toggle { border: 0; background: none; color: var(--text-secondary); cursor: pointer; font: inherit; padding: 2px 4px; }
     .document-collapse-toggle span { display: block; transition: transform .15s; }
     .document-collapse-toggle[aria-expanded="true"] span { transform: rotate(90deg); }
@@ -998,7 +1025,10 @@
   <!-- Status Bar -->
   <div class="status-bar">
     <div class="status-bar-left">
-      <span class="source-info" id="sourceInfo">Loading...</span>
+      <div class="source-navigation" id="sourceNavigation">
+        <button class="source-info" id="sourceInfo" type="button" aria-expanded="false" aria-controls="sourceMenu">Loading...</button>
+        <div class="source-popover" id="sourceMenu" aria-label="Review sources" hidden></div>
+      </div>
     </div>
     <div class="status-bar-right">
       <span class="gate-tag" id="gateTag" style="display:none;">⏳ Gate mode</span>
@@ -1859,6 +1889,52 @@
       sourceEl.textContent = MODE === 'annotate-last' ? 'Last message' : 'Annotation';
     }
 
+    const sourceNavigation = document.getElementById('sourceNavigation');
+    const sourceMenu = document.getElementById('sourceMenu');
+    function closeSourceMenu(focusButton) {
+      if (sourceMenu.hidden) return;
+      sourceMenu.hidden = true;
+      sourceEl.setAttribute('aria-expanded', 'false');
+      if (focusButton) sourceEl.focus();
+    }
+    function renderSourceMenu() {
+      sourceMenu.replaceChildren();
+      planData.documents.forEach(function(annotationSource) {
+        const item = document.createElement('button');
+        const badge = document.createElement('span');
+        const title = document.createElement('span');
+        item.type = 'button';
+        item.className = 'source-menu-item';
+        badge.className = 'source-badge source-badge--' + annotationSource.kind;
+        badge.textContent = annotationSource.kind === 'message' ? 'Message' : 'File';
+        title.className = 'source-menu-title';
+        title.textContent = annotationSource.title;
+        item.append(badge, title);
+        item.addEventListener('click', function() {
+          closeSourceMenu(true);
+          annotationSource.element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          annotationSource.element.classList.add('is-source-target');
+          window.setTimeout(function() { annotationSource.element.classList.remove('is-source-target'); }, 1200);
+        });
+        sourceMenu.appendChild(item);
+      });
+    }
+    sourceEl.addEventListener('click', function() {
+      const open = sourceMenu.hidden;
+      sourceMenu.hidden = !open;
+      sourceEl.setAttribute('aria-expanded', String(open));
+      if (open) sourceMenu.querySelector('button')?.focus();
+    });
+    document.addEventListener('click', function(event) {
+      if (!sourceNavigation.contains(event.target)) closeSourceMenu(false);
+    });
+    document.addEventListener('keydown', function(event) {
+      if (event.key === 'Escape' && !sourceMenu.hidden) {
+        event.preventDefault();
+        closeSourceMenu(true);
+      }
+    });
+
     // Show gate tag if applicable
     if (IS_GATE) {
       document.getElementById('gateTag').style.display = 'inline-flex';
@@ -1948,7 +2024,7 @@
         '3. Third item\n\n' +
         'Use the **Send Feedback** button at the bottom to submit your annotations to the server. ' +
         'Or use **Exit** to close without submitting.';
-      planData = { documents: [{ id: 'demo', title: '(Demo Mode)', sourceInfo: '(Demo Mode)', markdown: demoPlan,
+      planData = { documents: [{ id: 'demo', kind: 'file', title: '(Demo Mode)', sourceInfo: '(Demo Mode)', markdown: demoPlan,
         html: '<pre class="md-block" data-offset-start="0" data-offset-end="' + demoPlan.length + '"><code>' + escapeHtml(demoPlan) + '</code></pre>', hasChanges: false }] };
     }
 
@@ -1961,10 +2037,11 @@
     planData.documents.forEach(function(annotationSource) {
       const section = document.createElement('section');
       const isMessage = annotationSource.kind === 'message';
-      section.className = 'annotation-document' + (isMessage ? ' annotation-document--message' : '');
+      section.className = 'annotation-document annotation-document--' + annotationSource.kind;
       section.dataset.documentId = annotationSource.id;
+      const kindLabel = isMessage ? 'Message' : 'File';
       section.innerHTML = '<div class="document-header"><div class="document-title">' +
-        (isMessage ? '<button class="document-collapse-toggle" type="button" aria-expanded="true" aria-label="Collapse ' + escapeHtml(annotationSource.title) + '"><span aria-hidden="true">▸</span></button><span class="message-badge">Message</span>' : '') +
+        '<button class="document-collapse-toggle" type="button" aria-expanded="true" aria-label="Collapse ' + escapeHtml(annotationSource.title) + '"><span aria-hidden="true">▸</span></button><span class="source-badge source-badge--' + annotationSource.kind + '">' + kindLabel + '</span>' +
         '<h2>' + escapeHtml(annotationSource.title) + '</h2></div>' +
         '<button class="btn-toolbar btn-overall-comment" type="button">' + (singleDocument ? 'Overall comment' : 'Overall comment for this section') + '</button></div>' +
         '<div class="document-body"><div class="document-content">' + (annotationSource.html || '<p class="md-block" data-offset-start="0" data-offset-end="0" style="color:var(--text-muted)">(empty content)</p>') + '</div><div class="diff-viewer"></div></div>';
@@ -1985,7 +2062,8 @@
     style.textContent = '.md-block { scroll-margin-top: 100px; }';
     document.head.appendChild(style);
 
-    if (!SOURCE_INFO) sourceEl.textContent = planData.documents.length === 1 ? planData.documents[0].sourceInfo : planData.documents.length + ' sources';
+    sourceEl.textContent = planData.documents.length === 1 ? planData.documents[0].title : planData.documents.length + ' sources ▾';
+    renderSourceMenu();
 
     updateBadge();
     updateButtons();
