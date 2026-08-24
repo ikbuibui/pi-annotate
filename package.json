@@ -21,6 +21,7 @@
     "feedback-format.ts",
     "message-tree.ts",
     "server.ts",
+    "theme.ts",
     "diff/",
     "form/"
   ],

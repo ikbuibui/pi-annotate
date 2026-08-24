@@ -801,6 +801,14 @@
       font-size: 10px;
       color: var(--text-secondary);
     }
+    .theme-select {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      color: var(--text-secondary);
+      font: inherit;
+      padding: 3px 5px;
+    }
 
     .toolbar-right {
       display: flex;
@@ -1012,6 +1020,7 @@
   <div class="toolbar">
     <div class="toolbar-left">
       <span class="shortcut-hint"><kbd class="mod-key">⌘</kbd><kbd>Shift</kbd><kbd>L</kbd> Theme</span>
+      <label>Theme <select class="theme-select" id="themeSelect" aria-label="Theme"></select></label>
     </div>
     <div class="toolbar-right">
       <button class="btn-toolbar btn-approve" id="btnApprove">✓ Approve</button>
@@ -1828,17 +1837,38 @@
       document.getElementById('gateTag').style.display = 'inline-flex';
     }
 
-    // Theme toggle: load saved preference, toggle via mod+shift+L
+    // Theme selector: built-ins plus validated user palettes from the server.
     (function initTheme() {
-      var saved = localStorage.getItem('pi-annotate-theme');
-      var isDark = saved !== 'light';
-      document.documentElement.classList.toggle('light-mode', !isDark);
+      var customThemes = new Map((Array.isArray(ANNOTATE_DATA.themes) ? ANNOTATE_DATA.themes : [])
+        .filter(function(theme) { return theme && typeof theme.name === 'string' && theme.colors && typeof theme.colors === 'object'; })
+        .map(function(theme) { return [theme.name, theme.colors]; }));
+      var names = ['dark', 'light'].concat(Array.from(customThemes.keys()));
+      var colorKeys = ['bg-primary', 'bg-secondary', 'bg-tertiary', 'bg-hover', 'text-primary', 'text-secondary', 'text-muted', 'border', 'border-light', 'accent', 'accent-hover', 'success', 'danger', 'warning', 'type-comment', 'type-comment-bg', 'type-comment-border', 'type-suggestion', 'type-suggestion-bg', 'type-suggestion-border', 'type-issue', 'type-issue-bg', 'type-issue-border', 'type-praise', 'type-praise-bg', 'type-praise-border'];
+      var select = document.getElementById('themeSelect');
+      names.forEach(function(name) {
+        var option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        select.appendChild(option);
+      });
+
+      function applyTheme(name) {
+        if (names.indexOf(name) < 0) name = 'dark';
+        var root = document.documentElement;
+        colorKeys.forEach(function(key) { root.style.removeProperty('--' + key); });
+        root.classList.toggle('light-mode', name === 'light');
+        var colors = customThemes.get(name);
+        if (colors) Object.keys(colors).forEach(function(key) { root.style.setProperty('--' + key, colors[key]); });
+        select.value = name;
+        localStorage.setItem('pi-annotate-theme', name);
+      }
+
+      applyTheme(localStorage.getItem('pi-annotate-theme') || 'dark');
+      select.addEventListener('change', function() { applyTheme(select.value); });
       document.addEventListener('keydown', function themeKeydown(e) {
         if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 'l' || e.key === 'L')) {
           e.preventDefault();
-          isDark = !isDark;
-          document.documentElement.classList.toggle('light-mode', !isDark);
-          localStorage.setItem('pi-annotate-theme', isDark ? 'dark' : 'light');
+          applyTheme(names[(names.indexOf(select.value) + 1) % names.length]);
         }
       });
     })();

@@ -20,6 +20,7 @@ import { getAnnotationCandidates, getInitialAnnotationCandidateIndex, type Annot
 import { CHANGE_ENTRY_TYPE, findStoredTurnChanges } from "./diff/session.js";
 import { TurnChangeTracker } from "./diff/tracker.js";
 import type { TurnFileChange } from "./diff/types.js";
+import { loadAnnotationThemes } from "./theme.js";
 
 async function openUrl(pi: ExtensionAPI, url: string): Promise<void> {
   const platform = os.platform();
@@ -198,6 +199,7 @@ async function openAnnotationServer(
     sourceInfo: options.sourceInfo,
     gate: false,
     changes: options.changes,
+    themes: loadAnnotationThemes(),
     assets,
   });
 

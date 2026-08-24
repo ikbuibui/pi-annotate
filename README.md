@@ -37,7 +37,7 @@ Restart pi or run `/reload` to load the extension.
 - **Overall Comments**: Add comment feedback for the whole response from the annotation panel
 - **Feedback Delivery**: Annotations are sent back to the agent as a structured follow-up message
 - **Approve Without Feedback**: When no annotations exist, approve documents directly
-- **Theme Toggle**: Switch between dark and light themes with `⌘+Shift+L` (`Ctrl+Shift+L` off macOS)
+- **Themes**: Select built-in or installed browser palettes; `⌘+Shift+L` cycles them (`Ctrl` off macOS)
 - **Submit Confirmation**: Shows confirmation after submitting feedback or approving
 
 ## How It Works
@@ -143,8 +143,27 @@ All annotations appear in the right sidebar panel. Use **Overall comment** there
 
 | Key | Action |
 |-----|--------|
-| `⌘+Shift+L` | Toggle dark/light theme (`Ctrl` off macOS) |
+| `⌘+Shift+L` | Cycle installed browser themes (`Ctrl` off macOS) |
 | `1`-`9`, `0` | Select Quick Label by number (when picker open) |
+
+## Custom Browser Themes
+
+Install JSON palette files in `~/.pi/agent/pi-annotate/themes/` (or `$PI_CODING_AGENT_DIR/pi-annotate/themes/`). They are loaded when an annotation page opens and appear in its **Theme** selector.
+
+```json
+{
+  "name": "Nord",
+  "colors": {
+    "bg-primary": "#2e3440",
+    "bg-secondary": "#3b4252",
+    "text-primary": "#eceff4",
+    "accent": "#88c0d0",
+    "type-issue": "#bf616a"
+  }
+}
+```
+
+`name` must be unique and cannot be `dark` or `light`. `colors` may override any palette token: `bg-primary`, `bg-secondary`, `bg-tertiary`, `bg-hover`, `text-primary`, `text-secondary`, `text-muted`, `border`, `border-light`, `accent`, `accent-hover`, `success`, `danger`, `warning`, and the `type-{comment,suggestion,issue,praise}` / `-bg` / `-border` tokens. Values accept hex, `rgb()`/`rgba()`, `hsl()`/`hsla()`, or CSS color keywords. Omitted tokens retain the dark palette's values.
 
 ## File Structure
 
@@ -154,6 +173,7 @@ pi-annotate/
 ├── feedback-format.ts    # Model-feedback formatter
 ├── diff/                 # Git-independent per-turn file diff tracking
 ├── server.ts              # Annotation HTTP server (API routes)
+├── theme.ts               # User theme validation and discovery
 ├── form/
 │   └── annotate.html      # Annotation UI (pure HTML/CSS/JS, no build step)
 ├── package.json

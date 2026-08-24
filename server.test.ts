@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import vm from "node:vm";
 import { gzipSync } from "node:zlib";
@@ -9,6 +11,7 @@ import { renderMarkdown, startAnnotationServer } from "./server.js";
 import { changedFilesMarkdown, createTurnPatch, renderTurnFileDiffHtml } from "./diff/render.js";
 import { findStoredTurnChanges } from "./diff/session.js";
 import { TurnChangeTracker } from "./diff/tracker.js";
+import { loadAnnotationThemes, parseBrowserTheme } from "./theme.js";
 import type { TurnFileChange } from "./diff/types.js";
 
 function change(path: string, original: string, modified: string): TurnFileChange {
@@ -31,6 +34,26 @@ test("renders Markdown with annotation source offsets", () => {
   assert.match(html, /<div class="md-block"[^>]*><pre><code class="language-js">/);
   assert.match(html, /&lt;script&gt;x&lt;\/script&gt;/);
   assert.match(renderMarkdown("```js\nconst answer = 42;\n```"), /<span class="hljs-keyword">const<\/span>/);
+});
+
+test("loads valid user theme palettes", () => {
+  const directory = mkdtempSync(join(tmpdir(), "pi-annotate-themes-"));
+  try {
+    writeFileSync(join(directory, "nord.json"), JSON.stringify({
+      name: "Nord",
+      colors: { "bg-primary": "#2e3440", accent: "rgb(136, 192, 208)" },
+    }));
+    writeFileSync(join(directory, "invalid.json"), JSON.stringify({ name: "bad", colors: { unknown: "red" } }));
+
+    assert.deepEqual(loadAnnotationThemes(directory), [{
+      name: "Nord",
+      colors: { "bg-primary": "#2e3440", accent: "rgb(136, 192, 208)" },
+    }]);
+    assert.equal(parseBrowserTheme('{"name":"dark","colors":{"accent":"#ffffff"}}'), null);
+    assert.equal(parseBrowserTheme('{"name":"unsafe","colors":{"accent":"url(https://example.com)"}}'), null);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });
 
 test("waits for an explicit exit decision", async () => {
@@ -145,6 +168,8 @@ test("serves independently rendered per-file diffs and assets", async () => {
 test("loads the Diff2Html UI highlighter before mounting diffs", () => {
   const page = readFileSync("form/annotate.html", "utf8");
   assert.match(page, /<script src="\/assets\/diff2html-ui\.js"><\/script>\s*<script src="\/assets\/diff-viewer\.js"><\/script>/);
+  assert.match(page, /id="themeSelect"/);
+  assert.match(page, /ANNOTATE_DATA\.themes/);
   assert.match(readFileSync("form/diff-viewer.js", "utf8"), /new window\.Diff2HtmlUI\(viewer\)\.highlightCode\(\)/);
 });
 

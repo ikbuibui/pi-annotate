@@ -10,6 +10,7 @@ import hljs from "highlight.js/lib/common";
 import type { Annotation } from "./feedback-format.js";
 import { renderTurnFileDiffHtml } from "./diff/render.js";
 import type { TurnFileChange } from "./diff/types.js";
+import type { BrowserTheme } from "./theme.js";
 
 export type { Annotation } from "./feedback-format.js";
 
@@ -20,6 +21,7 @@ interface AnnotationServerOptions {
   sourceInfo?: string;
   gate?: boolean;
   changes?: TurnFileChange[];
+  themes?: BrowserTheme[];
   assets?: Record<string, { content: string; contentType: string }>;
 }
 
@@ -201,7 +203,7 @@ export function renderMarkdown(markdown: string): string {
 export async function startAnnotationServer(
   options: AnnotationServerOptions
 ): Promise<AnnotationServerHandle> {
-  const { markdown, htmlContent, mode, sourceInfo, gate, changes = [], assets = {} } = options;
+  const { markdown, htmlContent, mode, sourceInfo, gate, changes = [], themes = [], assets = {} } = options;
   const renderedMarkdown = renderMarkdown(markdown);
   const sessionToken = randomUUID();
 
@@ -242,6 +244,7 @@ export async function startAnnotationServer(
           mode,
           sourceInfo: sourceInfo ?? null,
           gate: gate ?? false,
+          themes,
           startedAt: Date.now(),
         });
         const html = htmlContent.replace("__ANNOTATE_DATA__", inlineData);
