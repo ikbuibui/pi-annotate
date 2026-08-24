@@ -15,7 +15,7 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import { formatAnnotationFeedback, type Annotation, type AnnotationDocument, type AnnotationSource } from "./feedback-format.js";
 import { startAnnotationServer } from "./server.js";
-import { truncateToWidth, type KeybindingsManager } from "@earendil-works/pi-tui";
+import { CombinedAutocompleteProvider, Editor, truncateToWidth, type EditorTheme, type KeybindingsManager } from "@earendil-works/pi-tui";
 import { getAnnotationCandidates, getInitialAnnotationCandidateIndex, type AnnotationCandidate } from "./message-tree.js";
 import { CHANGE_ENTRY_TYPE, findStoredTurnChanges } from "./diff/session.js";
 import { TurnChangeTracker } from "./diff/tracker.js";
@@ -76,6 +76,11 @@ interface TreeTheme {
   bold(text: string): string;
 }
 
+export interface AnnotationTreeSelection {
+  candidates: AnnotationCandidate[];
+  addFiles: boolean;
+}
+
 export class AnnotationTreeSelector {
   private focusedId: string;
   private markedIds = new Set<string>();
@@ -87,7 +92,7 @@ export class AnnotationTreeSelector {
     private readonly theme: TreeTheme,
     private readonly keybindings: KeybindingsManager,
     private readonly maxVisible: number,
-    private readonly onSelect: (candidates: AnnotationCandidate[]) => void,
+    private readonly onSelect: (selection: AnnotationTreeSelection) => void,
     private readonly onCancel: () => void,
   ) {
     this.focusedId = candidates[getInitialAnnotationCandidateIndex(candidates)]?.id ?? "";
@@ -123,6 +128,17 @@ export class AnnotationTreeSelector {
     if (!candidates.some((candidate) => candidate.id === this.focusedId)) this.focusedId = candidates[0]?.id ?? "";
   }
 
+  private selectedCandidates(): AnnotationCandidate[] {
+    return this.markedIds.size
+      ? this.candidates.filter((candidate) => this.markedIds.has(candidate.id))
+      : this.filtered().filter((candidate) => candidate.id === this.focusedId);
+  }
+
+  private select(addFiles = false): void {
+    const candidates = this.selectedCandidates();
+    if (candidates.length) this.onSelect({ candidates, addFiles });
+  }
+
   invalidate(): void {}
 
   render(width: number): string[] {
@@ -132,7 +148,7 @@ export class AnnotationTreeSelector {
     const end = Math.min(start + this.maxVisible, candidates.length);
     const border = this.theme.fg("border", "─".repeat(width));
     const lines = [border, truncateToWidth(this.theme.fg("accent", this.theme.bold("  Annotation Tree")), width),
-      truncateToWidth(this.theme.fg("muted", this.searchMode ? `  Search: ${this.search}` : "  / search · space mark"), width), border];
+      truncateToWidth(this.theme.fg("muted", this.searchMode ? `  Search: ${this.search}` : "  / search · space mark · f add files"), width), border];
     if (!candidates.length) lines.push(truncateToWidth(this.theme.fg("muted", "  No messages found"), width));
     for (let index = start; index < end; index++) {
       const candidate = candidates[index];
@@ -145,7 +161,7 @@ export class AnnotationTreeSelector {
       lines.push(truncateToWidth(line, width));
     }
     lines.push(border);
-    lines.push(truncateToWidth(this.theme.fg("muted", `  (${candidates.length ? focusedIndex + 1 : 0}/${candidates.length})  ↑↓ move · space mark · enter Open review · esc cancel`), width));
+    lines.push(truncateToWidth(this.theme.fg("muted", `  (${candidates.length ? focusedIndex + 1 : 0}/${candidates.length})  ↑↓ move · space mark · f add files · enter Open review · esc cancel`), width));
     lines.push(border);
     return lines;
   }
@@ -155,10 +171,9 @@ export class AnnotationTreeSelector {
     else if (this.keybindings.matches(data, "tui.select.down")) this.move(1);
     else if (this.keybindings.matches(data, "tui.select.pageUp") || this.keybindings.matches(data, "tui.editor.cursorLeft")) this.move(-this.maxVisible);
     else if (this.keybindings.matches(data, "tui.select.pageDown") || this.keybindings.matches(data, "tui.editor.cursorRight")) this.move(this.maxVisible);
-    else if (this.keybindings.matches(data, "tui.select.confirm")) {
-      const selected = this.markedIds.size ? this.candidates.filter((candidate) => this.markedIds.has(candidate.id)) : this.filtered().filter((candidate) => candidate.id === this.focusedId);
-      if (selected.length) this.onSelect(selected);
-    } else if (this.keybindings.matches(data, "tui.select.cancel")) {
+    else if (this.keybindings.matches(data, "tui.select.confirm")) this.select();
+    else if (data.toLowerCase() === "f" && !this.searchMode) this.select(true);
+    else if (this.keybindings.matches(data, "tui.select.cancel")) {
       if (this.searchMode) { this.search = ""; this.searchMode = false; this.refocusFiltered(); }
       else this.onCancel();
     } else if (data === "/" && !this.searchMode) this.searchMode = true;
@@ -206,6 +221,39 @@ export function readAnnotationDocuments(cwd: string, args: string): AnnotationDo
       throw new Error(`Cannot read ${absolutePath}: ${err instanceof Error ? err.message : String(err)}`);
     }
     return [{ id: `file:${absolutePath}`, kind: "file", title: path, sourceInfo: path, markdown }];
+  });
+}
+
+async function promptAnnotationFiles(ctx: ExtensionCommandContext): Promise<string | null> {
+  return ctx.ui.custom<string | null>((tui, theme, keybindings, done) => {
+    const editorTheme: EditorTheme = {
+      borderColor: (text) => theme.fg("accent", text),
+      selectList: {
+        selectedPrefix: (text) => theme.fg("accent", text),
+        selectedText: (text) => theme.fg("accent", text),
+        description: (text) => theme.fg("muted", text),
+        scrollInfo: (text) => theme.fg("dim", text),
+        noMatch: (text) => theme.fg("warning", text),
+      },
+    };
+    const editor = new Editor(tui, editorTheme);
+    editor.setAutocompleteProvider(new CombinedAutocompleteProvider([], ctx.cwd));
+    editor.onSubmit = (value) => done(value.trim() || null);
+    return {
+      get focused() { return editor.focused; },
+      set focused(value: boolean) { editor.focused = value; },
+      render: (width: number) => [
+        truncateToWidth(theme.fg("accent", theme.bold("  Add files")), width),
+        truncateToWidth(theme.fg("muted", "  Enter paths (quotes supported; Tab completes)"), width),
+        ...editor.render(width),
+      ],
+      invalidate: () => editor.invalidate(),
+      handleInput: (data: string) => {
+        if (keybindings.matches(data, "tui.select.cancel") && !editor.isShowingAutocomplete()) done(null);
+        else editor.handleInput(data);
+        tui.requestRender();
+      },
+    };
   });
 }
 
@@ -403,9 +451,9 @@ export default function (pi: ExtensionAPI) {
             return;
           }
 
-          let selected: AnnotationCandidate[] | null | undefined;
+          let selection: AnnotationTreeSelection | null | undefined;
           if (ctx.mode === "tui") {
-            selected = await ctx.ui.custom<AnnotationCandidate[] | null>((tui, theme, keybindings, done) => {
+            selection = await ctx.ui.custom<AnnotationTreeSelection | null>((tui, theme, keybindings, done) => {
               const selector = new AnnotationTreeSelector(
                 candidates,
                 theme,
@@ -427,19 +475,31 @@ export default function (pi: ExtensionAPI) {
             const options = candidates.map((candidate) => `${candidate.prefix}${candidate.role}: ${candidate.preview} [${candidate.id}]`);
             const choice = await ctx.ui.select("Select a message to annotate", options);
             const candidate = candidates[options.indexOf(choice ?? "")];
-            selected = candidate ? [candidate] : null;
+            selection = candidate ? { candidates: [candidate], addFiles: false } : null;
           }
-          if (!selected?.length) return;
+          if (!selection?.candidates.length) return;
 
-          const documents = selected.map((candidate) => ({
+          const documents = selection.candidates.map((candidate) => ({
             ...messageDocument(candidate),
             changes: candidate.role === "assistant" ? turnChangesFor(ctx, candidate.id) : [],
           }));
-          const preview = selected[0].preview.length > 80 ? `${selected[0].preview.slice(0, 80)}…` : selected[0].preview;
+          if (selection.addFiles) {
+            for (;;) {
+              const paths = await promptAnnotationFiles(ctx);
+              if (paths === null) return;
+              try {
+                documents.push(...readAnnotationDocuments(ctx.cwd, paths));
+                break;
+              } catch (err) {
+                ctx.ui.notify(`Cannot add files: ${err instanceof Error ? err.message : String(err)}`, "error");
+              }
+            }
+          }
+          const preview = selection.candidates[0].preview.length > 80 ? `${selection.candidates[0].preview.slice(0, 80)}…` : selection.candidates[0].preview;
           return openAnnotationServer(pi, ctx, {
             documents,
             mode: "annotate",
-            notificationTarget: `${selected.length} message${selected.length === 1 ? "" : "s"}: “${preview}”`,
+            notificationTarget: `${documents.length} source${documents.length === 1 ? "" : "s"}: “${preview}”`,
           }, reviewGate);
         }
 

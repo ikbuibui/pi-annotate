@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import vm from "node:vm";
 import { gzipSync } from "node:zlib";
+import { CombinedAutocompleteProvider } from "@earendil-works/pi-tui";
 import { formatAnnotationFeedback } from "./feedback-format.js";
-import { AnnotationTreeSelector, handleAnnotationDecision, parseAnnotationPaths, readAnnotationDocuments } from "./index.js";
+import { AnnotationTreeSelector, handleAnnotationDecision, parseAnnotationPaths, readAnnotationDocuments, type AnnotationTreeSelection } from "./index.js";
 import { getAnnotationCandidates, getInitialAnnotationCandidateIndex } from "./message-tree.js";
 import { ReviewGate, handleReviewTerminalInput } from "./review-gate.js";
 import { renderMarkdown, startAnnotationServer } from "./server.js";
@@ -350,8 +351,8 @@ test("tree marks survive filtering and open in tree order", () => {
   ];
   const theme = { fg: (_: string, text: string) => text, bg: (_: string, text: string) => text, bold: (text: string) => text };
   const keys = { matches: (data: string, binding: string) => ({ "tui.select.up": data === "up", "tui.select.down": data === "down", "tui.select.confirm": data === "enter", "tui.select.cancel": data === "esc", "tui.editor.deleteCharBackward": data === "backspace" }[binding] ?? false) };
-  let opened: string[] = [];
-  const selector = new AnnotationTreeSelector(candidates, theme, keys as never, 5, (selected) => { opened = selected.map((candidate) => candidate.id); }, () => {});
+  let opened: AnnotationTreeSelection | undefined;
+  const selector = new AnnotationTreeSelector(candidates, theme, keys as never, 5, (selected) => { opened = selected; }, () => {});
   selector.handleInput(" "); // mark focused second
   selector.handleInput("up");
   selector.handleInput(" "); // mark first
@@ -359,16 +360,37 @@ test("tree marks survive filtering and open in tree order", () => {
   selector.handleInput("second");
   selector.handleInput("esc");
   selector.handleInput("enter");
-  assert.deepEqual(opened, ["first", "second"]);
+  assert.deepEqual(opened, { candidates: [candidates[0], candidates[1]], addFiles: false });
 
-  const searchSelector = new AnnotationTreeSelector(candidates, theme, keys as never, 5, (selected) => { opened = selected.map((candidate) => candidate.id); }, () => {});
+  const searchSelector = new AnnotationTreeSelector(candidates, theme, keys as never, 5, (selected) => { opened = selected; }, () => {});
   searchSelector.handleInput("/");
   searchSelector.handleInput("first");
   searchSelector.handleInput("enter");
-  assert.deepEqual(opened, ["first"]);
+  assert.deepEqual(opened, { candidates: [candidates[0]], addFiles: false });
+
+  const fileSelector = new AnnotationTreeSelector(candidates, theme, keys as never, 5, (selected) => { opened = selected; }, () => {});
+  fileSelector.handleInput("f");
+  assert.deepEqual(opened, { candidates: [candidates[1]], addFiles: true });
 });
 
 test("parses quoted annotation paths", () => {
   assert.deepEqual(parseAnnotationPaths('"docs/my plan.md" @README.md \'a b\' c\\ d'), ["docs/my plan.md", "README.md", "a b", "c d"]);
   assert.throws(() => parseAnnotationPaths('"unterminated'), /Unterminated/);
+});
+
+test("completes nested paths and quotes spaces", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "pi-annotate-complete-"));
+  try {
+    mkdirSync(join(directory, "nested"));
+    writeFileSync(join(directory, "first.md"), "");
+    writeFileSync(join(directory, "nested", "my file.md"), "");
+    const provider = new CombinedAutocompleteProvider([], directory);
+    const completion = await provider.getSuggestions(
+      ["first.md nested/my"], 0, 18, { signal: new AbortController().signal, force: true },
+    );
+    assert.deepEqual(completion, { items: [{ value: '"nested/my file.md"', label: "my file.md" }], prefix: "nested/my" });
+    const applied = provider.applyCompletion(["first.md nested/my"], 0, 18, completion!.items[0], completion!.prefix);
+    assert.deepEqual(applied.lines, ['first.md "nested/my file.md"']);
+    assert.deepEqual(parseAnnotationPaths(applied.lines[0]), ["first.md", "nested/my file.md"]);
+  } finally { rmSync(directory, { recursive: true, force: true }); }
 });

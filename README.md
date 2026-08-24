@@ -85,6 +85,8 @@ Without a file, select any previous user or assistant message from the session t
 /annotate
 ```
 
+Mark messages with `Space`, then press `f` to add one or more files. The file input supports quoted paths and `Tab` completion; the review opens marked messages in tree order followed by files in typed order.
+
 With files, annotate one or more documents in argument order. Quotes and escapes preserve paths with spaces:
 
 ```
@@ -158,6 +160,7 @@ All annotations appear in the right sidebar panel with their source title. Messa
 | `↑` / `↓` | Move focus |
 | `Space` | Mark or unmark the focused message |
 | `Enter` | **Open review** for marked messages, or the focused message when none are marked |
+| `f` | Add files after selected messages; `Tab` completes paths |
 | `/` | Search messages |
 | `Esc` | Clear active search, or cancel |
 
