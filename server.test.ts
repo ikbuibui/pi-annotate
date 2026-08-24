@@ -246,12 +246,13 @@ test("serves independently rendered per-file diffs and assets", async () => {
     assets: { "/assets/test.css": { content: "body{}", contentType: "text/css; charset=utf-8" } },
   });
   try {
-    const unified = await (await fetch(`${server.url}/api/diffs?documentId=one&style=unified`)).json() as { changes: number; files: Array<{ path: string; html: string }> };
-    const sideBySide = await (await fetch(`${server.url}/api/diffs?documentId=one&style=side-by-side`)).json() as { files: Array<{ path: string; html: string }> };
-    assert.equal(unified.changes, 2);
-    assert.deepEqual(unified.files.map((file) => file.path), ["one.ts", "two.ts"]);
-    assert.ok(unified.files.every((file) => /d2h-file/.test(file.html)));
-    assert.ok(sideBySide.files.every((file) => /d2h-diff-table/.test(file.html)));
+    const defaultStyle = await (await fetch(`${server.url}/api/diffs?documentId=one`)).json() as { changes: number; files: Array<{ path: string; html: string }> };
+    const unified = await (await fetch(`${server.url}/api/diffs?documentId=one&style=unified`)).json() as { files: Array<{ path: string; html: string }> };
+    assert.equal(defaultStyle.changes, 2);
+    assert.deepEqual(defaultStyle.files.map((file) => file.path), ["one.ts", "two.ts"]);
+    assert.ok(defaultStyle.files.every((file) => /d2h-file-side-diff/.test(file.html)));
+    assert.ok(unified.files.every((file) => /d2h-file-diff/.test(file.html)));
+    assert.ok(unified.files.every((file) => !/d2h-file-side-diff/.test(file.html)));
     const asset = await fetch(`${server.url}/assets/test.css`);
     assert.equal(asset.headers.get("content-type"), "text/css; charset=utf-8");
     assert.equal(await asset.text(), "body{}");
@@ -287,7 +288,8 @@ test("loads the Diff2Html UI highlighter before mounting diffs", () => {
   assert.match(page, /btnFullReviewComment.*singleDocument \? 'none'/);
   assert.match(page, /id="btnApprove">Approve without feedback<\/button>/);
   assert.match(page, /class="diff-style-toggle" role="group" aria-label="Diff layout"/);
-  assert.match(page, /id="diffUnified" type="button" aria-pressed="true"/);
+  assert.match(page, /id="diffUnified" type="button" aria-pressed="false"/);
+  assert.match(page, /id="diffSideBySide" type="button" aria-pressed="true"/);
   const diffCss = readFileSync("form/diff-viewer.css", "utf8");
   const diffViewer = readFileSync("form/diff-viewer.js", "utf8");
   assert.match(diffCss, /\.diff-viewer \.d2h-code-side-emptyplaceholder, \.diff-viewer \.d2h-emptyplaceholder/);
@@ -299,6 +301,7 @@ test("loads the Diff2Html UI highlighter before mounting diffs", () => {
   assert.match(diffCss, /label \{ display:inline-flex; align-items:center; gap:5px;/);
   assert.match(diffCss, /\.d2h-tag\.d2h-changed-tag \{ background:var\(--bg-tertiary\); color:var\(--text-primary\); border-color:var\(--border\); \}/);
   assert.match(diffCss, /\.d2h-code-side-line del, \.diff-viewer \.d2h-code-side-line ins \{ display:inline; margin:0;/);
+  assert.match(diffViewer, /localStorage\.getItem\('pi-annotate-diff-style'\) \|\| 'side-by-side'/);
   assert.match(diffViewer, /setAttribute\('aria-pressed', String\(style === 'unified'\)\)/);
   assert.match(diffViewer, /className = 'diff-collapse-toggle'/);
   assert.match(diffViewer, /setCollapsed\(collapsedFiles\.get\(key\) \?\? false\);/);

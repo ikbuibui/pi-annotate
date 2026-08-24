@@ -257,7 +257,7 @@ export async function startAnnotationServer(
       }
 
       if (method === "GET" && url.pathname === "/api/diffs") {
-        const style = url.searchParams.get("style") === "side-by-side" ? "side-by-side" : "unified";
+        const style = url.searchParams.get("style") === "unified" ? "unified" : "side-by-side";
         const ignoreWhitespace = url.searchParams.get("ignoreWhitespace") === "true";
         const documentId = url.searchParams.get("documentId");
         const selected = documents.filter((document) => document.id === documentId);

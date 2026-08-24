@@ -84,7 +84,7 @@ window.AnnotationDiffViewer = (() => {
 
   async function mount(documents) {
     const controls = document.getElementById('diffControls');
-    const style = localStorage.getItem('pi-annotate-diff-style') || 'unified';
+    const style = localStorage.getItem('pi-annotate-diff-style') || 'side-by-side';
     const ignore = localStorage.getItem('pi-annotate-ignore-whitespace') === 'true';
     const currentRequest = ++requestId;
     const withChanges = documents.filter((annotationDocument) => annotationDocument.hasChanges);
