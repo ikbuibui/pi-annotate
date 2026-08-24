@@ -819,10 +819,10 @@
       background: var(--accent);
       color: #fff;
     }
-    .btn-feedback:hover {
+    .btn-feedback:not(:disabled):hover {
       background: var(--accent-hover);
     }
-    .btn-feedback:disabled {
+    .btn-toolbar:disabled {
       opacity: 0.5;
       cursor: not-allowed;
     }
@@ -831,7 +831,7 @@
       background: var(--success);
       color: #fff;
     }
-    .btn-approve:hover {
+    .btn-approve:not(:disabled):hover {
       opacity: 0.9;
     }
 
