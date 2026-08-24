@@ -1,5 +1,8 @@
 window.AnnotationDiffViewer = (() => {
   let requestId = 0;
+  let diffStyle = 'side-by-side';
+  let ignoreWhitespace = true;
+  let preferencesLoaded = false;
   const collapsedFiles = new Map();
 
   function collapseKey(documentId, path) {
@@ -82,10 +85,33 @@ window.AnnotationDiffViewer = (() => {
     return resolveSelectionRows(rows);
   }
 
+  async function loadPreferences() {
+    if (preferencesLoaded) return;
+    preferencesLoaded = true;
+    try {
+      const response = await fetch('/api/preferences');
+      const { diffStyle: savedStyle, ignoreWhitespace: savedIgnoreWhitespace } = await response.json();
+      if (response.ok && (savedStyle === 'unified' || savedStyle === 'side-by-side')) diffStyle = savedStyle;
+      if (response.ok && typeof savedIgnoreWhitespace === 'boolean') ignoreWhitespace = savedIgnoreWhitespace;
+    } catch {}
+  }
+
+  async function savePreferences(preferences) {
+    const response = await fetch('/api/preferences', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(preferences),
+    });
+    if (response.ok) {
+      const saved = await response.json();
+      if (saved.diffStyle === 'unified' || saved.diffStyle === 'side-by-side') diffStyle = saved.diffStyle;
+      if (typeof saved.ignoreWhitespace === 'boolean') ignoreWhitespace = saved.ignoreWhitespace;
+    }
+  }
+
   async function mount(documents) {
+    await loadPreferences();
     const controls = document.getElementById('diffControls');
-    const style = localStorage.getItem('pi-annotate-diff-style') || 'side-by-side';
-    const ignore = localStorage.getItem('pi-annotate-ignore-whitespace') === 'true';
+    const style = diffStyle;
+    const ignore = ignoreWhitespace;
     const currentRequest = ++requestId;
     const withChanges = documents.filter((annotationDocument) => annotationDocument.hasChanges);
     controls.style.display = withChanges.length ? 'flex' : 'none';
@@ -113,9 +139,9 @@ window.AnnotationDiffViewer = (() => {
   }
 
   function install(getDocuments) {
-    document.getElementById('diffUnified').onclick = () => { localStorage.setItem('pi-annotate-diff-style', 'unified'); mount(getDocuments()); };
-    document.getElementById('diffSideBySide').onclick = () => { localStorage.setItem('pi-annotate-diff-style', 'side-by-side'); mount(getDocuments()); };
-    document.getElementById('diffIgnoreWhitespace').onchange = (event) => { localStorage.setItem('pi-annotate-ignore-whitespace', event.target.checked); mount(getDocuments()); };
+    document.getElementById('diffUnified').onclick = async () => { await savePreferences({ diffStyle: 'unified' }); mount(getDocuments()); };
+    document.getElementById('diffSideBySide').onclick = async () => { await savePreferences({ diffStyle: 'side-by-side' }); mount(getDocuments()); };
+    document.getElementById('diffIgnoreWhitespace').onchange = async (event) => { await savePreferences({ ignoreWhitespace: event.target.checked }); mount(getDocuments()); };
   }
   return { install, mount, resolveRange, resolveSelectionRows, collapseKey };
 })();

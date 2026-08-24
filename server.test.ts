@@ -151,6 +151,40 @@ test("serves ordered documents and document-scoped diffs", async () => {
   } finally { server.stop(); }
 });
 
+test("persists diff preferences across review servers", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "pi-annotate-"));
+  const preferencePath = join(directory, "preferences.json");
+  const options = { documents: [document("one")], htmlContent: "", mode: "annotate" as const, preferencePath };
+  try {
+    const first = await startAnnotationServer(options);
+    try {
+      assert.deepEqual(await (await fetch(`${first.url}/api/preferences`)).json(), { diffStyle: "side-by-side", ignoreWhitespace: true });
+      assert.equal((await fetch(`${first.url}/api/preferences`, { method: "PUT", body: JSON.stringify({ diffStyle: "invalid" }) })).status, 400);
+      assert.equal((await fetch(`${first.url}/api/preferences`, { method: "PUT", body: JSON.stringify({ ignoreWhitespace: "invalid" }) })).status, 400);
+      assert.equal((await fetch(`${first.url}/api/preferences`, { method: "PUT", body: JSON.stringify({ diffStyle: "unified", ignoreWhitespace: false }) })).status, 200);
+    } finally { first.stop(); }
+
+    const second = await startAnnotationServer(options);
+    try {
+      assert.deepEqual(await (await fetch(`${second.url}/api/preferences`)).json(), { diffStyle: "unified", ignoreWhitespace: false });
+    } finally { second.stop(); }
+
+    writeFileSync(preferencePath, JSON.stringify({ diffStyle: "unified" }));
+    const third = await startAnnotationServer(options);
+    try {
+      assert.deepEqual(await (await fetch(`${third.url}/api/preferences`)).json(), { diffStyle: "unified", ignoreWhitespace: true });
+    } finally { third.stop(); }
+
+    writeFileSync(preferencePath, "not json");
+    const fourth = await startAnnotationServer(options);
+    try {
+      assert.deepEqual(await (await fetch(`${fourth.url}/api/preferences`)).json(), { diffStyle: "side-by-side", ignoreWhitespace: true });
+    } finally { fourth.stop(); }
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test("builds an annotation tree from messages only", () => {
   const candidates = getAnnotationCandidates([{ entry: {
     id: "root", parentId: null, type: "message", message: { role: "user", content: "First\nprompt" },
@@ -290,6 +324,7 @@ test("loads the Diff2Html UI highlighter before mounting diffs", () => {
   assert.match(page, /class="diff-style-toggle" role="group" aria-label="Diff layout"/);
   assert.match(page, /id="diffUnified" type="button" aria-pressed="false"/);
   assert.match(page, /id="diffSideBySide" type="button" aria-pressed="true"/);
+  assert.match(page, /id="diffIgnoreWhitespace" type="checkbox" checked/);
   const diffCss = readFileSync("form/diff-viewer.css", "utf8");
   const diffViewer = readFileSync("form/diff-viewer.js", "utf8");
   assert.match(diffCss, /\.diff-viewer \.d2h-code-side-emptyplaceholder, \.diff-viewer \.d2h-emptyplaceholder/);
@@ -301,7 +336,9 @@ test("loads the Diff2Html UI highlighter before mounting diffs", () => {
   assert.match(diffCss, /label \{ display:inline-flex; align-items:center; gap:5px;/);
   assert.match(diffCss, /\.d2h-tag\.d2h-changed-tag \{ background:var\(--bg-tertiary\); color:var\(--text-primary\); border-color:var\(--border\); \}/);
   assert.match(diffCss, /\.d2h-code-side-line del, \.diff-viewer \.d2h-code-side-line ins \{ display:inline; margin:0;/);
-  assert.match(diffViewer, /localStorage\.getItem\('pi-annotate-diff-style'\) \|\| 'side-by-side'/);
+  assert.match(diffViewer, /fetch\('\/api\/preferences'\)/);
+  assert.match(diffViewer, /method: 'PUT'/);
+  assert.doesNotMatch(diffViewer, /pi-annotate-(?:diff-style|ignore-whitespace)/);
   assert.match(diffViewer, /setAttribute\('aria-pressed', String\(style === 'unified'\)\)/);
   assert.match(diffViewer, /className = 'diff-collapse-toggle'/);
   assert.match(diffViewer, /setCollapsed\(collapsedFiles\.get\(key\) \?\? false\);/);

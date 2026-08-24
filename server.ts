@@ -9,6 +9,7 @@ import MarkdownIt, { type RendererRule } from "markdown-it";
 import hljs from "highlight.js/lib/common";
 import type { Annotation, AnnotationDocument } from "./feedback-format.js";
 import { renderTurnFileDiffHtml } from "./diff/render.js";
+import { loadPreferences, savePreferences } from "./preferences.js";
 import type { BrowserTheme } from "./theme.js";
 
 export type { Annotation } from "./feedback-format.js";
@@ -20,6 +21,7 @@ interface AnnotationServerOptions {
   gate?: boolean;
   themes?: BrowserTheme[];
   assets?: Record<string, { content: string; contentType: string }>;
+  preferencePath?: string;
 }
 
 interface AnnotationServerHandle {
@@ -200,7 +202,7 @@ export function renderMarkdown(markdown: string): string {
 export async function startAnnotationServer(
   options: AnnotationServerOptions
 ): Promise<AnnotationServerHandle> {
-  const { documents, htmlContent, mode, gate, themes = [], assets = {} } = options;
+  const { documents, htmlContent, mode, gate, themes = [], assets = {}, preferencePath } = options;
   if (!documents.length) throw new Error("At least one annotation document is required");
   const renderedDocuments = documents.map((document) => ({ ...document, html: renderMarkdown(document.markdown) }));
   const sessionToken = randomUUID();
@@ -253,6 +255,31 @@ export async function startAnnotationServer(
       if (method === "GET" && asset) {
         res.writeHead(200, { "Content-Type": asset.contentType, "Cache-Control": "no-store" });
         res.end(asset.content);
+        return;
+      }
+
+      if (method === "GET" && url.pathname === "/api/preferences") {
+        sendJson(res, 200, loadPreferences(preferencePath));
+        return;
+      }
+
+      if (method === "PUT" && url.pathname === "/api/preferences") {
+        const payload = await parseJsonBody(req);
+        if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+          sendJson(res, 400, { ok: false, error: "Preferences must be an object" });
+          return;
+        }
+        const { diffStyle, ignoreWhitespace } = payload as { diffStyle?: unknown; ignoreWhitespace?: unknown };
+        if ((diffStyle !== undefined && diffStyle !== "unified" && diffStyle !== "side-by-side")
+          || (ignoreWhitespace !== undefined && typeof ignoreWhitespace !== "boolean")
+          || (diffStyle === undefined && ignoreWhitespace === undefined)) {
+          sendJson(res, 400, { ok: false, error: "Invalid preferences" });
+          return;
+        }
+        sendJson(res, 200, { ok: true, ...savePreferences({
+          ...(diffStyle === undefined ? {} : { diffStyle }),
+          ...(ignoreWhitespace === undefined ? {} : { ignoreWhitespace }),
+        }, preferencePath) });
         return;
       }
 
