@@ -29,6 +29,7 @@ Restart pi or run `/reload` to load the extension.
 
 - **Message Annotation**: Select any previous user or assistant message from the session tree, or annotate the last assistant message directly
 - **Document Annotation**: Open any markdown file (specs, plans, design docs) in a visual annotation UI
+- **Turn File Diffs**: Annotating an assistant response includes unified or side-by-side diffs for files changed with `edit` or `write` in that response's turn
 - **Annotation Types**: Comment, Suggestion, Issue, and Praise — each with distinct color coding
 - **Quick Labels**: One-click preset labels for common feedback (needs clarification, missing details, verify assumption, etc.)
 - **Floating Toolbar**: Select text to reveal Comment, Suggestion, Issue, Delete, Quick Label, and Looks Good actions
@@ -73,7 +74,7 @@ Annotate the last assistant message in the current session:
 /annotate-last
 ```
 
-Select text in the message, add annotations or quick labels, and send feedback to the agent.
+Select text in the message, add annotations or quick labels, and send feedback to the agent. If the response changed files with `edit` or `write`, a **Files changed** section lets you switch between unified and side-by-side Git-independent diffs. The whitespace toggle ignores leading/trailing whitespace when computing hunks.
 
 ### `/annotate [file]`
 
@@ -94,6 +95,8 @@ File paths support:
 - Relative paths (from current working directory)
 - Absolute paths
 - `@` prefix notation (e.g., `@docs/superpowers/specs/...`)
+
+Turn diffs cover the built-in `edit` and `write` tools. Shell commands and custom tools are not tracked because their filesystem effects cannot be attributed reliably without workspace snapshots.
 
 ## Annotation UI
 
@@ -149,6 +152,7 @@ All annotations appear in the right sidebar panel. Use **Overall comment** there
 pi-annotate/
 ├── index.ts              # Extension entry point and commands
 ├── feedback-format.ts    # Model-feedback formatter
+├── diff/                 # Git-independent per-turn file diff tracking
 ├── server.ts              # Annotation HTTP server (API routes)
 ├── form/
 │   └── annotate.html      # Annotation UI (pure HTML/CSS/JS, no build step)

@@ -8,6 +8,7 @@ export interface Annotation {
     startOffset: number;
     endOffset: number;
     textPreview: string;
+    diff?: { path: string; side: "original" | "current"; startLine: number; endLine: number };
   } | null;
   createdAt: number;
 }
@@ -18,7 +19,9 @@ export const formatAnnotationFeedback: FeedbackFormatter = (annotations, sourceI
   if (!annotations.length) return "";
   const items = annotations.map((a) => {
     const tag = a.type === "comment" ? "Comment" : a.type === "suggestion" ? "Suggestion" : a.type === "issue" ? "Issue" : "Praise";
-    const target = a.scope === "overall" ? "> Applies to: Overall response" : `> Original text: "${a.originalText || "(none)"}"`;
+    const target = a.scope === "overall" ? "> Applies to: Overall response"
+      : a.range?.diff ? `> ${a.range.diff.path}:${a.range.diff.startLine}${a.range.diff.endLine !== a.range.diff.startLine ? `-${a.range.diff.endLine}` : ""} (${a.range.diff.side})`
+      : `> Original text: "${a.originalText || "(none)"}"`;
     return `- **${a.type}**: ${tag}\n  ${target}\n  ${a.text}`;
   }).join("\n\n");
   const ending = annotations.some((a) => a.type === "issue")

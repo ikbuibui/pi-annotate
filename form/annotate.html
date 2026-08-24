@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Annotation Review</title>
+  <link rel="stylesheet" href="/assets/diff2html.css">
+  <link rel="stylesheet" href="/assets/diff-viewer.css">
   <style>
     /* ===== CSS Variables / Theme ===== */
     :root {
@@ -290,22 +292,22 @@
       margin: 0.6em 0;
     }
 
-    .md-viewer table {
+    #content table {
       border-collapse: collapse;
       width: 100%;
       margin: 0.8em 0;
       font-size: 13px;
     }
-    .md-viewer th, .md-viewer td {
+    #content th, #content td {
       border: 1px solid var(--border);
       padding: 6px 12px;
       text-align: left;
     }
-    .md-viewer th {
+    #content th {
       background: var(--bg-secondary);
       font-weight: 600;
     }
-    .md-viewer tr:nth-child(even) {
+    #content tr:nth-child(even) {
       background: rgba(255,255,255,0.02);
     }
 
@@ -975,6 +977,11 @@
         <span class="count" id="annCount">0</span> annotations
       </span>
       <span class="gate-tag" id="gateTag" style="display:none;">⏳ Gate mode</span>
+      <span id="diffControls">
+        <button id="diffUnified" type="button">Unified</button>
+        <button id="diffSideBySide" type="button">Side by side</button>
+        <label><input id="diffIgnoreWhitespace" type="checkbox"> Ignore leading/trailing whitespace</label>
+      </span>
     </div>
   </div>
 
@@ -986,6 +993,7 @@
         <p style="color:var(--text-muted);">Loading content...</p>
       </div>
       <div id="content" style="display:none;"></div>
+      <div id="diffViewer"></div>
       <div id="errorState" style="display:none;flex-direction:column;align-items:center;justify-content:center;height:60vh;">
         <div class="msg-icon" style="font-size:36px;margin-bottom:12px;">⚠️</div>
         <p style="color:var(--text-secondary);font-size:14px;">Failed to load content</p>
@@ -1070,6 +1078,8 @@
 <!-- Submitted Banner -->
 <div class="submitted-banner" id="submittedBanner">✓ Feedback submitted successfully</div>
 
+<script src="/assets/diff2html-ui.js"></script>
+<script src="/assets/diff-viewer.js"></script>
 <script>
 (function() {
   'use strict';
@@ -1148,7 +1158,21 @@
     while (startBlock && !startBlock.classList?.contains('md-block')) startBlock = startBlock.parentNode;
     while (endBlock && !endBlock.classList?.contains('md-block')) endBlock = endBlock.parentNode;
 
-    if (!startBlock && !endBlock) return;
+    if (!!startBlock !== !!endBlock) return;
+
+    if (!startBlock && !endBlock) {
+      const diff = window.AnnotationDiffViewer.resolveRange(range, document.getElementById('diffViewer'));
+      if (!diff) return;
+      const selectedText = sel.toString().trim();
+      const rect = range.getBoundingClientRect();
+      pendingRange = {
+        startOffset: 0, endOffset: 0, textPreview: selectedText,
+        diff: diff,
+        selRect: { top: rect.top, bottom: rect.bottom, left: rect.left, width: rect.width }
+      };
+      showFloatingToolbar(range);
+      return;
+    }
 
     const startOffset = startBlock ? parseInt(startBlock.dataset.offsetStart) : 0;
     const endOffset = endBlock ? parseInt(endBlock.dataset.offsetEnd) : (planData?.plan?.length || 0);
@@ -1213,7 +1237,8 @@
       range: range ? {
         startOffset: range.startOffset,
         endOffset: range.endOffset,
-        textPreview: range.textPreview
+        textPreview: range.textPreview,
+        diff: range.diff
       } : null,
       createdAt: Date.now()
     };
@@ -1895,6 +1920,8 @@
     // Initial badge update
     updateBadge();
     updateButtons();
+    window.AnnotationDiffViewer.install();
+    window.AnnotationDiffViewer.mount();
 
     // Notify server when window is closed (reliable using fetch + keepalive)
     function notifyExit() {

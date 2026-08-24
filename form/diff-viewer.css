@@ -1,0 +1,19 @@
+#diffControls { display:none; align-items:center; gap:6px; }
+#diffControls button { border:1px solid var(--border); border-radius:var(--radius-sm); padding:3px 7px; background:var(--bg-tertiary); color:var(--text-secondary); cursor:pointer; font-size:11px; }
+#diffControls button.active { color:var(--text-primary); border-color:var(--accent); }
+#diffControls label { color:var(--text-secondary); font-size:11px; }
+#diffViewer { display:none; margin-top:28px; overflow:auto; font-family:var(--font-mono); font-size:12px; }
+#diffViewer .d2h-wrapper { margin:0; text-align:left; }
+#diffViewer .d2h-file-wrapper { border-color:var(--border); }
+#diffViewer .d2h-file-header, #diffViewer .d2h-code-side-linenumber, #diffViewer .d2h-code-linenumber { background:var(--bg-secondary); color:var(--text-secondary); border-color:var(--border); }
+#diffViewer .d2h-diff-table { margin:0; font-size:inherit; line-height:1.45; }
+#diffViewer .d2h-diff-table td { border-color:var(--border); padding:0; }
+#diffViewer .d2h-code-linenumber, #diffViewer .d2h-code-side-linenumber { display:table-cell; position:static; padding:0 8px; vertical-align:top; }
+#diffViewer .d2h-code-linenumber { width:7em; }
+#diffViewer .d2h-code-side-linenumber { width:3.5em; }
+#diffViewer .d2h-code-line, #diffViewer .d2h-code-side-line { display:block; width:auto; padding:0 8px; background:transparent; color:var(--text-primary); }
+#diffViewer .d2h-code-line-ctn { width:auto; }
+#diffViewer .d2h-info { background:var(--bg-secondary); color:var(--text-secondary); }
+#diffViewer .d2h-del, #diffViewer .d2h-file-diff .d2h-del.d2h-change { background:var(--type-issue-bg); border-color:transparent; }
+#diffViewer .d2h-ins, #diffViewer .d2h-file-diff .d2h-ins.d2h-change { background:var(--type-suggestion-bg); border-color:transparent; }
+#diffViewer .d2h-code-line del, #diffViewer .d2h-code-line ins, #diffViewer .d2h-code-side-line del, #diffViewer .d2h-code-side-line ins { background:transparent; border-radius:0; }

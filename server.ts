@@ -8,6 +8,8 @@ import { randomUUID } from "node:crypto";
 import MarkdownIt, { type RendererRule } from "markdown-it";
 import hljs from "highlight.js/lib/common";
 import type { Annotation } from "./feedback-format.js";
+import { renderTurnFileDiffHtml } from "./diff/render.js";
+import type { TurnFileChange } from "./diff/types.js";
 
 export type { Annotation } from "./feedback-format.js";
 
@@ -17,6 +19,8 @@ interface AnnotationServerOptions {
   mode: "annotate" | "annotate-last";
   sourceInfo?: string;
   gate?: boolean;
+  changes?: TurnFileChange[];
+  assets?: Record<string, { content: string; contentType: string }>;
 }
 
 interface AnnotationServerHandle {
@@ -197,7 +201,7 @@ export function renderMarkdown(markdown: string): string {
 export async function startAnnotationServer(
   options: AnnotationServerOptions
 ): Promise<AnnotationServerHandle> {
-  const { markdown, htmlContent, mode, sourceInfo, gate } = options;
+  const { markdown, htmlContent, mode, sourceInfo, gate, changes = [], assets = {} } = options;
   const renderedMarkdown = renderMarkdown(markdown);
   const sessionToken = randomUUID();
 
@@ -242,6 +246,24 @@ export async function startAnnotationServer(
         });
         const html = htmlContent.replace("__ANNOTATE_DATA__", inlineData);
         sendHtml(res, html);
+        return;
+      }
+
+      const asset = assets[url.pathname];
+      if (method === "GET" && asset) {
+        res.writeHead(200, { "Content-Type": asset.contentType, "Cache-Control": "no-store" });
+        res.end(asset.content);
+        return;
+      }
+
+      if (method === "GET" && url.pathname === "/api/diffs") {
+        const style = url.searchParams.get("style") === "side-by-side" ? "side-by-side" : "unified";
+        const ignoreWhitespace = url.searchParams.get("ignoreWhitespace") === "true";
+        const files = changes.map((change) => ({
+          path: change.path,
+          html: renderTurnFileDiffHtml(change, style, ignoreWhitespace),
+        }));
+        sendJson(res, 200, { changes: files.length, files });
         return;
       }
 

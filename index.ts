@@ -3,8 +3,9 @@
  * @date 2026-05-15
  */
 
+import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
-import { dirname, resolve } from "node:path";
+import { dirname, relative, resolve } from "node:path";
 import { readFileSync, existsSync } from "node:fs";
 import * as os from "node:os";
 import type {
@@ -16,6 +17,9 @@ import { formatAnnotationFeedback, type Annotation } from "./feedback-format.js"
 import { startAnnotationServer } from "./server.js";
 import { truncateToWidth, type KeybindingsManager } from "@earendil-works/pi-tui";
 import { getAnnotationCandidates, getInitialAnnotationCandidateIndex, type AnnotationCandidate } from "./message-tree.js";
+import { CHANGE_ENTRY_TYPE, findStoredTurnChanges } from "./diff/session.js";
+import { TurnChangeTracker } from "./diff/tracker.js";
+import type { TurnFileChange } from "./diff/types.js";
 
 async function openUrl(pi: ExtensionAPI, url: string): Promise<void> {
   const platform = os.platform();
@@ -34,7 +38,7 @@ async function openUrl(pi: ExtensionAPI, url: string): Promise<void> {
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
-function getLastAssistantMessageText(ctx: ExtensionContext): string | null {
+function getLastAssistantMessage(ctx: ExtensionContext): { id: string; text: string } | null {
   const entries = ctx.sessionManager.getBranch();
   for (let i = entries.length - 1; i >= 0; i--) {
     const entry = entries[i];
@@ -43,11 +47,15 @@ function getLastAssistantMessageText(ctx: ExtensionContext): string | null {
       if (msg.role === "assistant") {
         const parts = msg.content.filter((c) => c.type === "text");
         const text = parts.map((c) => c.text).join("").trim();
-        if (text) return text;
+        if (text) return { id: entry.id, text };
       }
     }
   }
   return null;
+}
+
+function turnChangesFor(ctx: ExtensionContext, assistantEntryId: string): TurnFileChange[] {
+  return findStoredTurnChanges(ctx.sessionManager.getBranch(), assistantEntryId)?.changes ?? [];
 }
 
 interface TreeTheme {
@@ -153,10 +161,20 @@ class AnnotationTreeSelector {
 // ── Shared annotation flow ─────────────────────────────────────────────
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const require = createRequire(import.meta.url);
 
 async function readAnnotateHtml(): Promise<string> {
-  const htmlPath = resolve(__dirname, "form", "annotate.html");
-  return readFileSync(htmlPath, "utf-8");
+  return readFileSync(resolve(__dirname, "form", "annotate.html"), "utf-8");
+}
+
+function readAnnotateAssets() {
+  const form = (name: string) => readFileSync(resolve(__dirname, "form", name), "utf-8");
+  return {
+    "/assets/diff2html-ui.js": { content: readFileSync(require.resolve("diff2html/bundles/js/diff2html-ui-slim.min.js"), "utf-8"), contentType: "text/javascript; charset=utf-8" },
+    "/assets/diff-viewer.js": { content: form("diff-viewer.js"), contentType: "text/javascript; charset=utf-8" },
+    "/assets/diff-viewer.css": { content: form("diff-viewer.css"), contentType: "text/css; charset=utf-8" },
+    "/assets/diff2html.css": { content: form("diff2html.css"), contentType: "text/css; charset=utf-8" },
+  };
 }
 
 async function openAnnotationServer(
@@ -167,9 +185,11 @@ async function openAnnotationServer(
     mode: "annotate" | "annotate-last";
     sourceInfo: string;
     notificationTarget?: string;
+    changes?: TurnFileChange[];
   },
 ): Promise<void> {
   const htmlContent = await readAnnotateHtml();
+  const assets = readAnnotateAssets();
 
   const server = await startAnnotationServer({
     markdown: options.markdown,
@@ -177,6 +197,8 @@ async function openAnnotationServer(
     mode: options.mode,
     sourceInfo: options.sourceInfo,
     gate: false,
+    changes: options.changes,
+    assets,
   });
 
   // Open the annotation UI in the system browser.
@@ -232,19 +254,59 @@ function handleAnnotationDecision(
 // ── Extension Entry ────────────────────────────────────────────────────
 
 export default function (pi: ExtensionAPI) {
+  const turnChanges = new TurnChangeTracker();
+
+  pi.on("before_agent_start", () => turnChanges.reset());
+
+  pi.on("tool_call", (event, ctx) => {
+    if (event.toolName !== "edit" && event.toolName !== "write") return;
+    const input = event.input as { path?: unknown };
+    if (typeof input.path !== "string") return;
+    const absolutePath = resolve(ctx.cwd, input.path.replace(/^@/, ""));
+    let before = "";
+    try {
+      before = readFileSync(absolutePath, "utf-8");
+    } catch {
+      // A write may create a new file.
+    }
+    turnChanges.capture(event.toolCallId, absolutePath, relative(ctx.cwd, absolutePath) || input.path, before);
+  });
+
+  pi.on("tool_result", (event) => {
+    if (!event.isError) turnChanges.markSucceeded(event.toolCallId);
+  });
+
+  pi.on("agent_settled", (_event, ctx) => {
+    const assistant = getLastAssistantMessage(ctx);
+    try {
+      if (!assistant) return;
+      const changes = turnChanges.finalize((absolutePath) => {
+        try {
+          return readFileSync(absolutePath, "utf-8");
+        } catch {
+          return null;
+        }
+      });
+      if (changes.length) pi.appendEntry(CHANGE_ENTRY_TYPE, { assistantEntryId: assistant.id, changes });
+    } finally {
+      turnChanges.reset();
+    }
+  });
+
   // ── Command: /annotate-last ──────────────────────────────────────────
 
   pi.registerCommand("annotate-last", {
     description: "Annotate the last assistant message in the current session",
     handler: async (_args: string, ctx: ExtensionCommandContext) => {
-      const text = getLastAssistantMessageText(ctx);
-      if (!text) {
+      const assistant = getLastAssistantMessage(ctx);
+      if (!assistant) {
         ctx.ui.notify("No assistant message found", "error");
         return;
       }
 
       return openAnnotationServer(pi, ctx, {
-        markdown: text,
+        markdown: assistant.text,
+        changes: turnChangesFor(ctx, assistant.id),
         mode: "annotate-last",
         sourceInfo: "last assistant message",
         notificationTarget: "last assistant message",
@@ -300,6 +362,7 @@ export default function (pi: ExtensionAPI) {
           const preview = selected.preview.length > 80 ? `${selected.preview.slice(0, 80)}…` : selected.preview;
           return openAnnotationServer(pi, ctx, {
             markdown: selected.text,
+            changes: selected.role === "assistant" ? turnChangesFor(ctx, selected.id) : [],
             mode: "annotate",
             sourceInfo: `${selected.role} message ${selected.id}`,
             notificationTarget: `${selected.role} message: “${preview}”`,

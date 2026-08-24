@@ -14,13 +14,14 @@
     "extension"
   ],
   "scripts": {
-    "test": "node --experimental-strip-types --test server.test.ts"
+    "test": "tsx --test server.test.ts"
   },
   "files": [
     "index.ts",
     "feedback-format.ts",
     "message-tree.ts",
     "server.ts",
+    "diff/",
     "form/"
   ],
   "pi": {
@@ -33,9 +34,12 @@
   },
   "devDependencies": {
     "@earendil-works/pi-coding-agent": "^0.84.2",
-    "@types/node": "^25.8.0"
+    "@types/node": "^25.8.0",
+    "tsx": "^4.23.12"
   },
   "dependencies": {
+    "diff": "^8.0.4",
+    "diff2html": "^3.4.56",
     "highlight.js": "^11.12.0",
     "markdown-it": "^15.0.0"
   }
