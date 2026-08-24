@@ -144,6 +144,21 @@ test("renders snapshot contents, not legacy patch text", () => {
   assert.doesNotMatch(renderTurnFileDiffHtml(change("space.ts", "value \n", "value\n"), "unified", true), /@@/);
 });
 
+test("aligns side-by-side changed lines by content", () => {
+  const html = renderTurnFileDiffHtml(change(
+    "example.ts",
+    "const alpha = oldValue;\nconst beta = oldValue;\n",
+    "const leading = value;\nconst alpha = newValue;\nconst beta = newValue;\n",
+  ), "side-by-side", false);
+  const rows = (table: string) => [...table.matchAll(/<tr[\s\S]*?<\/tr>/g)].map((row) =>
+    row[0].replace(/<[^>]+>|&nbsp;/g, " ").replace(/\s+/g, " ").trim(),
+  );
+  const [left, right] = html.match(/<table[\s\S]*?<\/table>/g)!;
+
+  assert.deepEqual(rows(left).slice(1), ["", "1 - const alpha = oldValue ;", "2 - const beta = oldValue ;"]);
+  assert.deepEqual(rows(right).slice(1), ["1 + const leading = value;", "2 + const alpha = newValue ;", "3 + const beta = newValue ;"]);
+});
+
 test("serves independently rendered per-file diffs and assets", async () => {
   const changes = [change("one.ts", "one\n", "ONE\n"), change("two.ts", "two\n", "TWO\n")];
   const server = await startAnnotationServer({
@@ -173,7 +188,20 @@ test("loads the Diff2Html UI highlighter before mounting diffs", () => {
   assert.match(page, /<div class="panel-header"><span>Annotations<\/span><span class="annotation-badge" id="annBadge">/);
   assert.match(page, /<div class="toolbar-right">\s*<button class="btn-toolbar btn-overall-comment" id="btnOverallComment">Overall comment<\/button>\s*<button class="btn-toolbar btn-feedback"/);
   assert.match(page, /id="btnApprove">Approve without feedback<\/button>/);
-  assert.match(readFileSync("form/diff-viewer.js", "utf8"), /new window\.Diff2HtmlUI\(viewer\)\.highlightCode\(\)/);
+  assert.match(page, /class="diff-style-toggle" role="group" aria-label="Diff layout"/);
+  assert.match(page, /id="diffUnified" type="button" aria-pressed="true"/);
+  const diffCss = readFileSync("form/diff-viewer.css", "utf8");
+  const diffViewer = readFileSync("form/diff-viewer.js", "utf8");
+  assert.match(diffCss, /\.d2h-code-side-emptyplaceholder, #diffViewer \.d2h-emptyplaceholder \{ background:var\(--bg-secondary\);/);
+  assert.match(diffCss, /\.is-collapsed > \.d2h-file-diff/);
+  assert.match(diffCss, /\.diff-style-toggle \{ display:inline-flex; \}/);
+  assert.match(diffCss, /label \{ display:inline-flex; align-items:center; gap:5px;/);
+  assert.match(diffCss, /\.d2h-tag\.d2h-changed-tag \{ background:var\(--bg-tertiary\); color:var\(--text-primary\); border-color:var\(--border\); \}/);
+  assert.match(diffViewer, /setAttribute\('aria-pressed', String\(style === 'unified'\)\)/);
+  assert.match(diffViewer, /className = 'diff-collapse-toggle'/);
+  assert.match(diffViewer, /setCollapsed\(false\);/);
+  assert.match(diffViewer, /aria-expanded/);
+  assert.match(diffViewer, /new window\.Diff2HtmlUI\(viewer\)\.highlightCode\(\)/);
 });
 
 test("resolves multiline diff selections on one compatible side", () => {

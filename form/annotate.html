@@ -984,8 +984,10 @@
     <div class="status-bar-right">
       <span class="gate-tag" id="gateTag" style="display:none;">⏳ Gate mode</span>
       <span id="diffControls">
-        <button id="diffUnified" type="button">Unified</button>
-        <button id="diffSideBySide" type="button">Side by side</button>
+        <span class="diff-style-toggle" role="group" aria-label="Diff layout">
+          <button id="diffUnified" type="button" aria-pressed="true">Unified</button>
+          <button id="diffSideBySide" type="button" aria-pressed="false">Side by side</button>
+        </span>
         <label><input id="diffIgnoreWhitespace" type="checkbox"> Ignore leading/trailing whitespace</label>
       </span>
     </div>

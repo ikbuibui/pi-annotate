@@ -1,19 +1,34 @@
-#diffControls { display:none; align-items:center; gap:6px; }
+#diffControls { display:none; align-items:center; gap:8px; }
 #diffControls button { border:1px solid var(--border); border-radius:var(--radius-sm); padding:3px 7px; background:var(--bg-tertiary); color:var(--text-secondary); cursor:pointer; font-size:11px; }
-#diffControls button.active { color:var(--text-primary); border-color:var(--accent); }
-#diffControls label { color:var(--text-secondary); font-size:11px; }
+#diffControls .diff-style-toggle { display:inline-flex; }
+#diffControls .diff-style-toggle button { border-radius:0; }
+#diffControls .diff-style-toggle button + button { margin-left:-1px; }
+#diffControls .diff-style-toggle button:first-child { border-radius:var(--radius-sm) 0 0 var(--radius-sm); }
+#diffControls .diff-style-toggle button:last-child { border-radius:0 var(--radius-sm) var(--radius-sm) 0; }
+#diffControls button.active { background:var(--accent); color:#fff; border-color:var(--accent); position:relative; z-index:1; }
+#diffControls button:focus-visible { outline:2px solid var(--accent-hover); outline-offset:1px; position:relative; z-index:2; }
+#diffControls label { display:inline-flex; align-items:center; gap:5px; color:var(--text-secondary); font-size:11px; }
+#diffIgnoreWhitespace { margin:0; vertical-align:middle; accent-color:var(--accent); }
 #diffViewer { display:none; margin-top:28px; overflow:auto; font-family:var(--font-mono); font-size:12px; }
 #diffViewer .d2h-wrapper { margin:0; text-align:left; }
 #diffViewer .d2h-file-wrapper { border-color:var(--border); }
+#diffViewer .d2h-file-wrapper.is-collapsed > .d2h-file-diff, #diffViewer .d2h-file-wrapper.is-collapsed > .d2h-files-diff { display:none; }
+#diffViewer .d2h-file-header { cursor:pointer; }
 #diffViewer .d2h-file-header, #diffViewer .d2h-code-side-linenumber, #diffViewer .d2h-code-linenumber { background:var(--bg-secondary); color:var(--text-secondary); border-color:var(--border); }
+#diffViewer .diff-collapse-toggle { border:0; background:transparent; color:inherit; cursor:pointer; font:inherit; padding:4px 8px 4px 2px; }
+#diffViewer .diff-collapse-toggle span { display:block; transition:transform .15s; }
+#diffViewer .diff-collapse-toggle[aria-expanded="true"] span { transform:rotate(90deg); }
+#diffViewer .d2h-file-header :is(a, button, input, label) { cursor:pointer; }
 #diffViewer .d2h-diff-table { margin:0; font-size:inherit; line-height:1.45; }
 #diffViewer .d2h-diff-table td { border-color:var(--border); padding:0; }
 #diffViewer .d2h-code-linenumber, #diffViewer .d2h-code-side-linenumber { display:table-cell; position:static; padding:0 8px; vertical-align:top; }
+#diffViewer .d2h-code-side-emptyplaceholder, #diffViewer .d2h-emptyplaceholder { background:var(--bg-secondary); border-color:var(--border); }
 #diffViewer .d2h-code-linenumber { width:7em; }
 #diffViewer .d2h-code-side-linenumber { width:3.5em; }
 #diffViewer .d2h-code-line, #diffViewer .d2h-code-side-line { display:block; width:auto; padding:0 8px; background:transparent; color:var(--text-primary); }
 #diffViewer .d2h-code-line-ctn { width:auto; }
 #diffViewer .d2h-info { background:var(--bg-secondary); color:var(--text-secondary); }
+#diffViewer .d2h-tag.d2h-changed-tag { background:var(--bg-tertiary); color:var(--text-primary); border-color:var(--border); }
 #diffViewer .d2h-del, #diffViewer .d2h-file-diff .d2h-del.d2h-change { background:var(--type-issue-bg); border-color:transparent; }
 #diffViewer .d2h-ins, #diffViewer .d2h-file-diff .d2h-ins.d2h-change { background:var(--type-suggestion-bg); border-color:transparent; }
 #diffViewer .d2h-code-line del, #diffViewer .d2h-code-line ins, #diffViewer .d2h-code-side-line del, #diffViewer .d2h-code-side-line ins { background:transparent; border-radius:0; }

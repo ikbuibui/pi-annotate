@@ -17,7 +17,11 @@ function snapshotContents(change: TurnFileChange): { original: string; modified:
 export function renderTurnFileDiffHtml(change: TurnFileChange, style: "unified" | "side-by-side", ignoreWhitespace: boolean): string {
   const { original, modified } = snapshotContents(change);
   const patch = createTurnPatch(change.path, original, modified, ignoreWhitespace);
-  return renderDiffHtml(patch, { drawFileList: false, outputFormat: style === "unified" ? "line-by-line" : "side-by-side" });
+  return renderDiffHtml(patch, {
+    drawFileList: false,
+    outputFormat: style === "unified" ? "line-by-line" : "side-by-side",
+    matching: style === "side-by-side" ? "lines" : "none",
+  });
 }
 
 export function changedFilesMarkdown(changes: TurnFileChange[]): string {

@@ -27,6 +27,27 @@ window.AnnotationDiffViewer = (() => {
   function decorate(container, path, style) {
     container.querySelectorAll('.d2h-file-wrapper').forEach((file) => {
       file.dataset.diffPath = path;
+      const header = file.querySelector('.d2h-file-header');
+      const body = file.querySelector(':scope > .d2h-file-diff, :scope > .d2h-files-diff');
+      if (header && body) {
+        const toggle = document.createElement('button');
+        toggle.type = 'button';
+        toggle.className = 'diff-collapse-toggle';
+        toggle.innerHTML = '<span aria-hidden="true">▸</span>';
+        header.prepend(toggle);
+        const setCollapsed = (collapsed) => {
+          file.classList.toggle('is-collapsed', collapsed);
+          toggle.setAttribute('aria-expanded', String(!collapsed));
+          toggle.setAttribute('aria-label', (collapsed ? 'Expand ' : 'Collapse ') + path);
+        };
+        setCollapsed(false);
+        const toggleFile = () => setCollapsed(!file.classList.contains('is-collapsed'));
+        toggle.addEventListener('click', (event) => { event.stopPropagation(); toggleFile(); });
+        header.addEventListener('click', (event) => {
+          if (event.target.closest('a, button, input, label') || !window.getSelection()?.isCollapsed) return;
+          toggleFile();
+        });
+      }
       const sideDiffs = [...file.querySelectorAll('.d2h-file-side-diff')];
       file.querySelectorAll('tr').forEach((row) => {
         const numberCell = row.querySelector('.d2h-code-linenumber, .d2h-code-side-linenumber');
@@ -69,7 +90,9 @@ window.AnnotationDiffViewer = (() => {
     if (currentRequest !== requestId || !data.changes) return;
     controls.style.display = 'flex';
     document.getElementById('diffUnified').classList.toggle('active', style === 'unified');
+    document.getElementById('diffUnified').setAttribute('aria-pressed', String(style === 'unified'));
     document.getElementById('diffSideBySide').classList.toggle('active', style === 'side-by-side');
+    document.getElementById('diffSideBySide').setAttribute('aria-pressed', String(style === 'side-by-side'));
     document.getElementById('diffIgnoreWhitespace').checked = ignore;
     viewer.replaceChildren(Object.assign(document.createElement('h1'), { textContent: 'Files changed' }));
     data.files.forEach(({ path, html }) => {
