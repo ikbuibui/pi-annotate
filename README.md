@@ -31,8 +31,8 @@ Restart pi or run `/reload` to load the extension.
 - **Document Annotation**: Open one or more markdown files (specs, plans, design docs) in one ordered visual review
 - **Turn File Diffs**: Annotating an assistant response includes unified or side-by-side diffs for files changed with `edit` or `write` in that response's turn
 - **Annotation Types**: Comment, Suggestion, Issue, and Praise — each with distinct color coding
-- **Quick Labels**: One-click preset labels for common feedback (needs clarification, missing details, verify assumption, etc.)
-- **Floating Toolbar**: Select text to reveal Comment, Suggestion, Issue, Delete, Quick Label, and Looks Good actions
+- **Quick Labels**: One-click preset labels for common feedback, including needs clarification, missing details, and verify assumption
+- **Floating Toolbar**: Select text to reveal Comment, Suggestion, Issue, Quick Label, and Close actions
 - **Text Feedback Popups**: Comment, Suggestion, and Issue each open a focused text-entry popup
 - **Three Comment Scopes**: Annotate selected text, add an overall comment for one source section, or add a full-review comment
 - **Feedback Delivery**: Annotations are sent back to the agent as a structured follow-up message
@@ -55,13 +55,13 @@ Restart pi or run `/reload` to load the extension.
 1. Run `/annotate`, `/annotate <file> [file...]`, or `/annotate-last`
 2. Local server starts → annotation UI opens in the system browser
 3. Select text in the document → floating toolbar appears with annotation actions
-4. Add overall comments from the bottom action bar, or select text for Comment, Suggestion, Issue, Quick Label, Delete, or Praise
-5. Session ends via:
+4. Add overall comments from the bottom action bar, or select text for Comment, Suggestion, Issue, or a Quick Label (including delete and praise)
+5. The review ends via:
    - **Send Feedback** → annotations sent back to agent as follow-up message
    - **Approve without feedback** → document approved, no feedback sent (available when no annotations exist)
-   - **Close tab** → session ends without feedback
-6. In the TUI, Return is blocked while review is open, preserving the editor draft and blocking both prompts and slash commands. Finish, approve, or close the review before sending another prompt.
-7. After sending feedback or approving, the browser may keep the tab open.
+   - **Close the review tab** → review ends without feedback
+6. Within the chat that opened it, prompt and slash-command submission is blocked until the review ends. This permits one user-started annotation review at a time per chat; it is not a process-wide server limit, so separate chats or pi processes can review concurrently.
+7. After sending feedback or approving, the browser tab may remain open, but the review is no longer active.
 
 ## Usage
 
@@ -77,7 +77,7 @@ Annotate the last assistant message in the current session:
 
 Select text in the message, add annotations or quick labels, and send feedback to the agent. If the response changed files with `edit` or `write`, a **Files changed** section lets you switch between unified and side-by-side Git-independent diffs. The whitespace toggle ignores leading/trailing whitespace when computing hunks.
 
-### `/annotate [file]`
+### `/annotate <file> [file...]`
 
 Without a file, select any previous user or assistant message from the session tree:
 
@@ -87,10 +87,16 @@ Without a file, select any previous user or assistant message from the session t
 
 Mark messages with `Space`, then press `f` to add one or more files. The file input supports quoted paths and `Tab` completion; the review opens marked messages in tree order followed by files in typed order.
 
+<p align="center">
+  <img src="docs/demo/annotation-tree.png" alt="pi-annotate message tree with marked messages" width="100%">
+  <br>
+  <em>Message selector: mark one or more chat messages, then open the review or add files</em>
+</p>
+
 With files, annotate one or more documents in argument order. Quotes and escapes preserve paths with spaces:
 
 ```
-/annotate docs/superpowers/specs/my-design.md
+/annotate docs/specs/my-design.md
 /annotate "docs/my plan.md" README.md
 /annotate @PLAN.md @README.md
 ```
@@ -100,7 +106,7 @@ Every path is resolved and read before the browser opens; a missing or unreadabl
 File paths support:
 - Relative paths (from current working directory)
 - Absolute paths
-- `@` prefix notation on each path (e.g., `@docs/superpowers/specs/...`)
+- `@` prefix notation on each path (e.g., `@docs/specs/...`)
 - Single quotes, double quotes, and backslash escapes
 
 Turn diffs cover the built-in `edit` and `write` tools. Shell commands and custom tools are not tracked because their filesystem effects cannot be attributed reliably without workspace snapshots.
@@ -116,26 +122,28 @@ Select any text to reveal a floating toolbar:
 | 💬 Comment | Opens text input | Type detailed feedback about the selected text |
 | 💡 Suggestion | Opens text input | Propose an improvement for the selected text |
 | ⓘ Issue | Opens text input | Describe a problem in the selected text |
-| 🗑️ Delete | Creates issue annotation | Suggests removing the selected section |
-| ⚡ Quick Label | Opens preset picker | One-click labels for common feedback |
-| 👍 Looks Good | Creates praise annotation | Marks the selected text as good |
+| ⚡ Quick Label | Opens preset picker | Add a preset annotation to the selected text |
+| ✕ Close | Dismisses toolbar | Discards the selected range for annotation |
 
 ### Quick Labels
 
 Preset labels for common feedback on specs, plans, and messages:
 
-| Key | Label | Description |
-|-----|-------|-------------|
-| 1 | ❓ Needs Clarification | The selected section requires further explanation |
-| 2 | 📋 Missing Details | Key details or specifics are absent |
-| 3 | 🔍 Verify Assumption | Underlying assumption needs to be validated |
-| 4 | 🔬 Missing Example | A concrete example would improve understanding |
-| 5 | ⚖️ Trade-off Analysis | Pros and cons of this approach should be discussed |
-| 6 | 🏗️ Over-engineered | The proposed solution is more complex than needed |
-| 7 | 🚫 Out of Scope | This item falls outside the defined scope |
-| 8 | ⚠️ Edge Case Missing | Potential edge cases have not been addressed |
-| 9 | 📐 Well-structured | The structure and organization are clear |
-| 0 | 👍 Good Approach | The proposed approach is sound |
+Quick labels are chosen from the Quick Label menu; they have no number-key shortcuts.
+
+| Label | Annotation type | Description |
+|-------|-----------------|-------------|
+| 🗑️ Suggest deletion | Suggestion | Suggests removing the selected section |
+| 👍 Looks good | Praise | Marks the selected text as good |
+| ❓ Needs Clarification | Suggestion | The selected section requires further explanation |
+| 📋 Missing Details | Suggestion | Key details or specifics are absent |
+| 🔍 Verify Assumption | Suggestion | Underlying assumption needs to be validated |
+| 🔬 Missing Example | Suggestion | A concrete example would improve understanding |
+| ⚖️ Trade-off Analysis | Suggestion | Pros and cons of this approach should be discussed |
+| 🏗️ Over-engineered | Suggestion | The proposed solution is more complex than needed |
+| 🚫 Out of Scope | Suggestion | This item falls outside the defined scope |
+| ⚠️ Edge Case Missing | Suggestion | Potential edge cases have not been addressed |
+| 📐 Well-structured | Suggestion | The structure and organization are clear |
 
 ### Annotation Panel
 
@@ -206,7 +214,7 @@ When you send feedback, the agent receives a structured message like:
 ```
 ## Annotation Feedback
 
-The following feedback was provided for docs/superpowers/specs/my-design.md:
+The following feedback was provided for docs/specs/my-design.md:
 
 - **suggestion**: Consider adding concrete API design details
   > Original text: "Communication uses a RESTful API"
@@ -247,5 +255,5 @@ This customizes the built-in grouped text layout while retaining all structured 
 
 - Max 5MB request body for feedback submission
 - Sessions stay open until feedback, approval, exit, or a normal tab close
-- TUI prompt and slash-command submission is blocked while review is open
-- Single concurrent annotation session
+- Prompt and slash-command submission is blocked in the chat that opened a review until it ends
+- One user-started annotation review can be active per chat; separate chats or pi processes can review concurrently
