@@ -618,10 +618,8 @@
     .toolbar-action-btn.comment:hover { background: var(--type-comment-bg); }
     .toolbar-action-btn.suggestion { color: var(--type-suggestion); }
     .toolbar-action-btn.suggestion:hover { background: var(--type-suggestion-bg); }
-    .toolbar-action-btn.issue, .toolbar-action-btn.delete { color: var(--type-issue); }
-    .toolbar-action-btn.issue:hover, .toolbar-action-btn.delete:hover { background: var(--type-issue-bg); }
-    .toolbar-action-btn.praise { color: var(--type-praise); }
-    .toolbar-action-btn.praise:hover { background: var(--type-praise-bg); }
+    .toolbar-action-btn.issue { color: var(--type-issue); }
+    .toolbar-action-btn.issue:hover { background: var(--type-issue-bg); }
     .toolbar-action-btn.quicklabel { color: var(--warning); }
     .toolbar-action-btn.quicklabel:hover { background: rgba(230, 160, 64, 0.12); }
 
@@ -656,12 +654,6 @@
     }
     .ql-item:hover { background: var(--bg-hover); }
     .ql-item .ql-emoji { font-size: 14px; }
-    .ql-item .ql-key {
-      margin-left: auto;
-      font-size: 10px;
-      color: var(--text-muted);
-      font-family: var(--font-mono);
-    }
 
     .creation-popup {
       position: fixed;
@@ -1031,12 +1023,6 @@
   <button class="toolbar-action-btn issue" id="tbIssue" title="Add issue">
     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/></svg>
   </button>
-  <button class="toolbar-action-btn delete" id="tbDelete" title="Suggest deletion">
-    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-  </button>
-  <button class="toolbar-action-btn praise" id="tbPraise" title="Looks good">
-    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5"/></svg>
-  </button>
   <button class="toolbar-action-btn quicklabel" id="tbQuickLabel" title="Quick label">
     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
   </button>
@@ -1046,16 +1032,17 @@
   </button>
 </div>
 <div class="ql-popover" id="qlPopover">
-  <button class="ql-item" data-ql="clarify"><span class="ql-emoji">❓</span> Needs Clarification<span class="ql-key">1</span></button>
-  <button class="ql-item" data-ql="missing"><span class="ql-emoji">📋</span> Missing Details<span class="ql-key">2</span></button>
-  <button class="ql-item" data-ql="assumption"><span class="ql-emoji">🔍</span> Verify Assumption<span class="ql-key">3</span></button>
-  <button class="ql-item" data-ql="example"><span class="ql-emoji">🔬</span> Missing Example<span class="ql-key">4</span></button>
-  <button class="ql-item" data-ql="tradeoff"><span class="ql-emoji">⚖️</span> Trade-off Analysis<span class="ql-key">5</span></button>
-  <button class="ql-item" data-ql="over-eng"><span class="ql-emoji">🏗️</span> Over-engineered<span class="ql-key">6</span></button>
-  <button class="ql-item" data-ql="scope"><span class="ql-emoji">🚫</span> Out of Scope<span class="ql-key">7</span></button>
-  <button class="ql-item" data-ql="edge-case"><span class="ql-emoji">⚠️</span> Edge Case Missing<span class="ql-key">8</span></button>
-  <button class="ql-item" data-ql="structure"><span class="ql-emoji">📐</span> Well-structured<span class="ql-key">9</span></button>
-  <button class="ql-item" data-ql="nice"><span class="ql-emoji">👍</span> Good Approach<span class="ql-key">0</span></button>
+  <button class="ql-item" data-ql="delete"><span class="ql-emoji">🗑️</span> Suggest deletion</button>
+  <button class="ql-item" data-ql="praise"><span class="ql-emoji">👍</span> Looks good</button>
+  <button class="ql-item" data-ql="clarify"><span class="ql-emoji">❓</span> Needs Clarification</button>
+  <button class="ql-item" data-ql="missing"><span class="ql-emoji">📋</span> Missing Details</button>
+  <button class="ql-item" data-ql="assumption"><span class="ql-emoji">🔍</span> Verify Assumption</button>
+  <button class="ql-item" data-ql="example"><span class="ql-emoji">🔬</span> Missing Example</button>
+  <button class="ql-item" data-ql="tradeoff"><span class="ql-emoji">⚖️</span> Trade-off Analysis</button>
+  <button class="ql-item" data-ql="over-eng"><span class="ql-emoji">🏗️</span> Over-engineered</button>
+  <button class="ql-item" data-ql="scope"><span class="ql-emoji">🚫</span> Out of Scope</button>
+  <button class="ql-item" data-ql="edge-case"><span class="ql-emoji">⚠️</span> Edge Case Missing</button>
+  <button class="ql-item" data-ql="structure"><span class="ql-emoji">📐</span> Well-structured</button>
 </div>
 <div class="creation-overlay" id="creationOverlay"></div>
 <div class="creation-popup" id="creationPopup" style="display:none;">
@@ -1556,16 +1543,6 @@
     if (pendingRange) showCreationPopup('issue', pendingRange);
   });
 
-  document.getElementById('tbDelete').addEventListener('click', function() {
-    hideFloatingToolbar();
-    if (pendingRange) { addAnnotation('issue', 'Suggest removing this section', pendingRange); pendingRange = null; }
-  });
-
-  document.getElementById('tbPraise').addEventListener('click', function() {
-    hideFloatingToolbar();
-    if (pendingRange) { addAnnotation('praise', 'Looks good', pendingRange); pendingRange = null; }
-  });
-
   document.getElementById('tbClose').addEventListener('click', function() {
     pendingRange = null;
     hideFloatingToolbar();
@@ -1574,16 +1551,17 @@
   /* ===== Quick Label Popover ===== */
 
   var qlLabels = [
-    { id: 'clarify', emoji: '❓', text: 'Needs Clarification' },
-    { id: 'missing', emoji: '📋', text: 'Missing Details' },
-    { id: 'assumption', emoji: '🔍', text: 'Verify Assumption' },
-    { id: 'example', emoji: '🔬', text: 'Missing Example' },
-    { id: 'tradeoff', emoji: '⚖️', text: 'Trade-off Analysis' },
-    { id: 'over-eng', emoji: '🏗️', text: 'Over-engineered' },
-    { id: 'scope', emoji: '🚫', text: 'Out of Scope' },
-    { id: 'edge-case', emoji: '⚠️', text: 'Edge Case Missing' },
-    { id: 'structure', emoji: '📐', text: 'Well-structured' },
-    { id: 'nice', emoji: '👍', text: 'Good Approach' }
+    { id: 'delete', type: 'suggestion', text: 'Suggest removing this section' },
+    { id: 'praise', type: 'praise', text: 'Looks good' },
+    { id: 'clarify', type: 'suggestion', text: 'Needs Clarification' },
+    { id: 'missing', type: 'suggestion', text: 'Missing Details' },
+    { id: 'assumption', type: 'suggestion', text: 'Verify Assumption' },
+    { id: 'example', type: 'suggestion', text: 'Missing Example' },
+    { id: 'tradeoff', type: 'suggestion', text: 'Trade-off Analysis' },
+    { id: 'over-eng', type: 'suggestion', text: 'Over-engineered' },
+    { id: 'scope', type: 'suggestion', text: 'Out of Scope' },
+    { id: 'edge-case', type: 'suggestion', text: 'Edge Case Missing' },
+    { id: 'structure', type: 'suggestion', text: 'Well-structured' }
   ];
 
   document.getElementById('tbQuickLabel').addEventListener('click', function(e) {
@@ -1593,9 +1571,10 @@
       return;
     }
     var btnRect = this.getBoundingClientRect();
+    popover.classList.add('active');
     // Dynamic positioning: show above by default, below if not enough space
     var spaceAbove = btnRect.top;
-    var popoverHeight = 280;
+    var popoverHeight = popover.offsetHeight;
     if (spaceAbove > popoverHeight) {
       popover.style.top = (btnRect.top - 4) + 'px';
       popover.style.transform = 'translateY(-100%)';
@@ -1604,16 +1583,14 @@
       popover.style.transform = 'none';
     }
     popover.style.left = (btnRect.left - 4) + 'px';
-    popover.classList.add('active');
   });
 
   document.querySelectorAll('.ql-item').forEach(function(item) {
     item.addEventListener('click', function() {
       var id = this.dataset.ql;
       var found = qlLabels.find(function(l) { return l.id === id; });
-      var text = found ? found.emoji + ' ' + found.text : 'Suggestion';
-      if (pendingRange) {
-        addAnnotation('suggestion', text, pendingRange);
+      if (pendingRange && found) {
+        addAnnotation(found.type, found.text, pendingRange);
         pendingRange = null;
       }
       document.getElementById('qlPopover').classList.remove('active');
