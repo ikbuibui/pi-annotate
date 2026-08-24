@@ -170,6 +170,9 @@ test("loads the Diff2Html UI highlighter before mounting diffs", () => {
   assert.match(page, /<script src="\/assets\/diff2html-ui\.js"><\/script>\s*<script src="\/assets\/diff-viewer\.js"><\/script>/);
   assert.match(page, /id="themeSelect"/);
   assert.match(page, /ANNOTATE_DATA\.themes/);
+  assert.match(page, /<div class="panel-header"><span>Annotations<\/span><span class="annotation-badge" id="annBadge">/);
+  assert.match(page, /<div class="toolbar-right">\s*<button class="btn-toolbar btn-overall-comment" id="btnOverallComment">Overall comment<\/button>\s*<button class="btn-toolbar btn-feedback"/);
+  assert.match(page, /id="btnApprove">Approve without feedback<\/button>/);
   assert.match(readFileSync("form/diff-viewer.js", "utf8"), /new window\.Diff2HtmlUI\(viewer\)\.highlightCode\(\)/);
 });
 

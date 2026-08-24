@@ -34,7 +34,7 @@ Restart pi or run `/reload` to load the extension.
 - **Quick Labels**: One-click preset labels for common feedback (needs clarification, missing details, verify assumption, etc.)
 - **Floating Toolbar**: Select text to reveal Comment, Suggestion, Issue, Delete, Quick Label, and Looks Good actions
 - **Text Feedback Popups**: Comment, Suggestion, and Issue each open a focused text-entry popup
-- **Overall Comments**: Add comment feedback for the whole response from the annotation panel
+- **Overall Comments**: Add comment feedback for the whole response from the bottom action bar
 - **Feedback Delivery**: Annotations are sent back to the agent as a structured follow-up message
 - **Approve Without Feedback**: When no annotations exist, approve documents directly
 - **Themes**: Select built-in or installed browser palettes; `⌘+Shift+L` cycles them (`Ctrl` off macOS)
@@ -55,10 +55,10 @@ Restart pi or run `/reload` to load the extension.
 1. Run `/annotate`, `/annotate <file>`, or `/annotate-last`
 2. Local server starts → annotation UI opens in the system browser
 3. Select text in the document → floating toolbar appears with annotation actions
-4. Add overall comments from the sidebar, or select text for Comment, Suggestion, Issue, Quick Label, Delete, or Praise
+4. Add overall comments from the bottom action bar, or select text for Comment, Suggestion, Issue, Quick Label, Delete, or Praise
 5. Session ends via:
    - **Send Feedback** → annotations sent back to agent as follow-up message
-   - **Approve** → document approved, no feedback sent (available when no annotations exist)
+   - **Approve without feedback** → document approved, no feedback sent (available when no annotations exist)
    - **Close tab** → session ends without feedback
 6. After sending feedback or approving, the browser may keep the tab open.
 
@@ -132,7 +132,7 @@ Preset labels for common feedback on specs, plans, and messages:
 
 ### Annotation Panel
 
-All annotations appear in the right sidebar panel. Use **Overall comment** there to comment on the entire response. Each annotation shows:
+All annotations appear in the right sidebar panel. Use **Overall comment** in the bottom action bar to comment on the entire response. Each annotation shows:
 - Type badge with color coding (Comment/Suggestion/Issue/Praise)
 - Annotation text
 - Original selected text preview, or an Overall response marker

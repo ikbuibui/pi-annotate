@@ -375,19 +375,6 @@
       border-bottom: 1px solid var(--border);
       flex-shrink: 0;
     }
-    .btn-overall-comment {
-      padding: 4px 7px;
-      border: 1px solid var(--type-comment-border);
-      border-radius: var(--radius-sm);
-      background: var(--type-comment-bg);
-      color: var(--type-comment);
-      font: inherit;
-      font-size: 10px;
-      letter-spacing: 0;
-      text-transform: none;
-      cursor: pointer;
-    }
-    .btn-overall-comment:hover { background: var(--bg-hover); }
 
     .panel-body {
       flex: 1;
@@ -832,17 +819,25 @@
     .btn-feedback:not(:disabled):hover {
       background: var(--accent-hover);
     }
+    .btn-overall-comment {
+      background: var(--type-comment-bg);
+      border: 1px solid var(--type-comment-border);
+      color: var(--type-comment);
+    }
+    .btn-overall-comment:hover { background: var(--bg-hover); }
     .btn-toolbar:disabled {
       opacity: 0.5;
       cursor: not-allowed;
     }
 
     .btn-approve {
-      background: var(--success);
-      color: #fff;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
     }
     .btn-approve:not(:disabled):hover {
-      opacity: 0.9;
+      background: var(--bg-hover);
+      color: var(--text-primary);
     }
 
 
@@ -952,6 +947,12 @@
     }
 
     /* ===== Responsive ===== */
+    @media (max-width: 600px) {
+      .toolbar-left { display: none; }
+      .toolbar { padding: 0 8px; }
+      .toolbar-right { margin-left: auto; gap: 4px; }
+      .btn-toolbar { padding: 8px 10px; }
+    }
     @media (max-width: 720px) {
       .annotation-panel {
         width: 240px;
@@ -981,9 +982,6 @@
       <span class="source-info" id="sourceInfo">Loading...</span>
     </div>
     <div class="status-bar-right">
-      <span class="annotation-badge" id="annBadge">
-        <span class="count" id="annCount">0</span> annotations
-      </span>
       <span class="gate-tag" id="gateTag" style="display:none;">⏳ Gate mode</span>
       <span id="diffControls">
         <button id="diffUnified" type="button">Unified</button>
@@ -1011,7 +1009,7 @@
 
     <!-- Annotation Panel -->
     <div class="annotation-panel" id="annPanel">
-      <div class="panel-header"><span>Annotations</span><button class="btn-overall-comment" id="btnOverallComment">Overall comment</button></div>
+      <div class="panel-header"><span>Annotations</span><span class="annotation-badge" id="annBadge"><span class="count" id="annCount">0</span> annotations</span></div>
       <div class="panel-body" id="annList"></div>
     </div>
   </div>
@@ -1023,8 +1021,9 @@
       <label>Theme <select class="theme-select" id="themeSelect" aria-label="Theme"></select></label>
     </div>
     <div class="toolbar-right">
-      <button class="btn-toolbar btn-approve" id="btnApprove">✓ Approve</button>
+      <button class="btn-toolbar btn-overall-comment" id="btnOverallComment">Overall comment</button>
       <button class="btn-toolbar btn-feedback" id="btnFeedback" disabled>Send Feedback</button>
+      <button class="btn-toolbar btn-approve" id="btnApprove">Approve without feedback</button>
     </div>
   </div>
 </div>
@@ -1747,7 +1746,7 @@
     } catch (err) {
       alert('Failed to approve: ' + err.message);
       this.disabled = false;
-      this.textContent = '✓ Approve';
+      this.textContent = 'Approve without feedback';
     }
   });
 
