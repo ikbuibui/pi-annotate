@@ -1067,7 +1067,7 @@
   <!-- Bottom Toolbar -->
   <div class="toolbar">
     <div class="toolbar-left">
-      <span class="shortcut-hint"><kbd class="mod-key">⌘</kbd><kbd>Shift</kbd><kbd>L</kbd> Theme</span>
+      <span class="shortcut-hint"><kbd class="mod-key">Ctrl</kbd><kbd>Shift</kbd><kbd>L</kbd> Theme</span>
       <label>Theme <select class="theme-select" id="themeSelect" aria-label="Theme"></select></label>
     </div>
     <div class="toolbar-right">
@@ -1988,12 +1988,6 @@
       _origUpdateAll();
       updateApproveButton();
     };
-
-    // Detect mod key label
-    const isMac = /Mac/i.test(navigator.userAgent) && !/iPhone|iPad|iPod/i.test(navigator.userAgent);
-    document.querySelectorAll('.mod-key').forEach(el => {
-      el.textContent = isMac ? '⌘' : 'Ctrl';
-    });
 
     try {
       planData = await fetchPlan();

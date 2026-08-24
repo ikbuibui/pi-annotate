@@ -37,7 +37,7 @@ Restart pi or run `/reload` to load the extension.
 - **Three Comment Scopes**: Annotate selected text, add an overall comment for one source section, or add a full-review comment
 - **Feedback Delivery**: Annotations are sent back to the agent as a structured follow-up message
 - **Approve Without Feedback**: When no annotations exist, approve documents directly
-- **Themes**: Select built-in or installed browser palettes; `⌘+Shift+L` cycles them (`Ctrl` off macOS)
+- **Themes**: Select built-in or installed browser palettes; `Ctrl+Shift+L` cycles them
 - **Submit Confirmation**: Shows confirmation after submitting feedback or approving
 
 ## How It Works
@@ -150,8 +150,7 @@ All annotations appear in the right sidebar panel with their source title. Every
 
 | Key | Action |
 |-----|--------|
-| `⌘+Shift+L` | Cycle installed browser themes (`Ctrl` off macOS) |
-| `1`-`9`, `0` | Select Quick Label by number (when picker open) |
+| `Ctrl+Shift+L` | Cycle installed browser themes |
 
 ### Message selector
 
