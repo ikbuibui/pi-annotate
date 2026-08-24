@@ -6,7 +6,7 @@ import test from "node:test";
 import vm from "node:vm";
 import { gzipSync } from "node:zlib";
 import { formatAnnotationFeedback } from "./feedback-format.js";
-import { handleAnnotationDecision } from "./index.js";
+import { AnnotationTreeSelector, handleAnnotationDecision, parseAnnotationPaths, readAnnotationDocuments } from "./index.js";
 import { getAnnotationCandidates, getInitialAnnotationCandidateIndex } from "./message-tree.js";
 import { ReviewGate, handleReviewTerminalInput } from "./review-gate.js";
 import { renderMarkdown, startAnnotationServer } from "./server.js";
@@ -15,6 +15,10 @@ import { findStoredTurnChanges } from "./diff/session.js";
 import { TurnChangeTracker } from "./diff/tracker.js";
 import { loadAnnotationThemes, parseBrowserTheme } from "./theme.js";
 import type { TurnFileChange } from "./diff/types.js";
+
+function document(id: string, markdown = "", changes: TurnFileChange[] = []) {
+  return { id, kind: "file" as const, title: id, sourceInfo: id, markdown, changes };
+}
 
 function change(path: string, original: string, modified: string): TurnFileChange {
   return {
@@ -61,9 +65,23 @@ test("review decisions do not replay blocked prompts", () => {
     const pi = { sendUserMessage: (content: string) => sent.push(content) };
     const ctx = { ui: { notify: () => {} } };
 
-    handleAnnotationDecision(pi as never, ctx as never, decision, "response", "");
+    handleAnnotationDecision(pi as never, ctx as never, decision, [{ id: "response", title: "response", sourceInfo: "response" }]);
     assert.deepEqual(sent, expected);
   }
+});
+
+test("sends one grouped follow-up for a multi-document review", () => {
+  const sent: string[] = [];
+  const pi = { sendUserMessage: (content: string) => sent.push(content) };
+  handleAnnotationDecision(pi as never, { ui: { notify: () => {} } } as never, {
+    action: "feedback",
+    annotations: [
+      { id: "second", type: "issue", scope: "selection", documentId: "second", text: "Fix this", originalText: "bad", range: { startOffset: 0, endOffset: 3, textPreview: "bad" }, createdAt: 0 },
+      { id: "first", type: "comment", scope: "overall", documentId: "first", text: "Looks good", originalText: "", range: null, createdAt: 0 },
+    ],
+  }, [{ id: "first", title: "First", sourceInfo: "first" }, { id: "second", title: "Second", sourceInfo: "second" }]);
+  assert.equal(sent.length, 1);
+  assert.ok(sent[0].indexOf("### First") < sent[0].indexOf("### Second"));
 });
 
 test("renders Markdown with annotation source offsets", () => {
@@ -99,7 +117,7 @@ test("loads valid user theme palettes", () => {
 
 test("waits for an explicit exit decision", async () => {
   const server = await startAnnotationServer({
-    markdown: "",
+    documents: [document("empty")],
     htmlContent: "__ANNOTATE_DATA__",
     mode: "annotate",
   });
@@ -111,6 +129,25 @@ test("waits for an explicit exit decision", async () => {
   } finally {
     server.stop();
   }
+});
+
+test("serves ordered documents and document-scoped diffs", async () => {
+  const server = await startAnnotationServer({
+    documents: [document("first", "# First"), document("second", "# Second", [change("two.ts", "old\n", "new\n")])],
+    htmlContent: "", mode: "annotate",
+  });
+  try {
+    const plan = await (await fetch(`${server.url}/api/plan`)).json() as { documents: Array<{ id: string; html: string }> };
+    assert.deepEqual(plan.documents.map((entry) => entry.id), ["first", "second"]);
+    assert.equal("plan" in plan, false);
+    assert.equal("html" in plan, false);
+    assert.equal("sourceInfo" in plan, false);
+    assert.match(plan.documents[1].html, /Second/);
+    const diffs = await (await fetch(`${server.url}/api/diffs?documentId=second`)).json() as { files: Array<{ documentId: string; path: string }> };
+    assert.deepEqual(diffs.files.map((file) => [file.documentId, file.path]), [["second", "two.ts"]]);
+    assert.equal((await fetch(`${server.url}/api/diffs`)).status, 400);
+    assert.equal((await fetch(`${server.url}/api/diffs?documentId=missing`)).status, 400);
+  } finally { server.stop(); }
 });
 
 test("builds an annotation tree from messages only", () => {
@@ -203,12 +240,12 @@ test("aligns side-by-side changed lines by content", () => {
 test("serves independently rendered per-file diffs and assets", async () => {
   const changes = [change("one.ts", "one\n", "ONE\n"), change("two.ts", "two\n", "TWO\n")];
   const server = await startAnnotationServer({
-    markdown: "", htmlContent: "", mode: "annotate", changes,
+    documents: [document("one", "", changes)], htmlContent: "", mode: "annotate",
     assets: { "/assets/test.css": { content: "body{}", contentType: "text/css; charset=utf-8" } },
   });
   try {
-    const unified = await (await fetch(`${server.url}/api/diffs?style=unified`)).json() as { changes: number; files: Array<{ path: string; html: string }> };
-    const sideBySide = await (await fetch(`${server.url}/api/diffs?style=side-by-side`)).json() as { files: Array<{ path: string; html: string }> };
+    const unified = await (await fetch(`${server.url}/api/diffs?documentId=one&style=unified`)).json() as { changes: number; files: Array<{ path: string; html: string }> };
+    const sideBySide = await (await fetch(`${server.url}/api/diffs?documentId=one&style=side-by-side`)).json() as { files: Array<{ path: string; html: string }> };
     assert.equal(unified.changes, 2);
     assert.deepEqual(unified.files.map((file) => file.path), ["one.ts", "two.ts"]);
     assert.ok(unified.files.every((file) => /d2h-file/.test(file.html)));
@@ -227,26 +264,41 @@ test("loads the Diff2Html UI highlighter before mounting diffs", () => {
   assert.match(page, /id="themeSelect"/);
   assert.match(page, /ANNOTATE_DATA\.themes/);
   assert.match(page, /<div class="panel-header"><span>Annotations<\/span><span class="annotation-badge" id="annBadge">/);
-  assert.match(page, /<div class="toolbar-right">\s*<button class="btn-toolbar btn-overall-comment" id="btnOverallComment">Overall comment<\/button>\s*<button class="btn-toolbar btn-feedback"/);
+  assert.match(page, /id="btnFullReviewComment">Full review comment<\/button>/);
+  assert.match(page, /Overall comment for this section/);
+  assert.match(page, /annotation-document/);
+  assert.match(page, /startDocument !== endDocument/);
+  assert.match(page, /documentId: range \? range\.documentId : documentId/);
+  assert.match(page, /\.diff-viewer tr\[data-diff-path\]/);
+  assert.match(page, /annotationSource\.kind === 'message'/);
+  assert.match(page, /annotation-document--message/);
+  assert.match(page, /\.annotation-document--message \{ margin-bottom: 40px; border: 1px solid var\(--border-light\); border-radius: var\(--radius\);/);
+  assert.match(page, /\.annotation-document--message \.document-body \{ padding: 4px 16px 16px;/);
+  assert.match(page, /message-badge">Message/);
+  assert.match(page, /document-collapse-toggle/);
+  assert.match(page, /singleDocument \? 'Overall comment' : 'Overall comment for this section'/);
+  assert.match(page, /btnFullReviewComment.*singleDocument \? 'none'/);
   assert.match(page, /id="btnApprove">Approve without feedback<\/button>/);
   assert.match(page, /class="diff-style-toggle" role="group" aria-label="Diff layout"/);
   assert.match(page, /id="diffUnified" type="button" aria-pressed="true"/);
   const diffCss = readFileSync("form/diff-viewer.css", "utf8");
   const diffViewer = readFileSync("form/diff-viewer.js", "utf8");
-  assert.match(diffCss, /\.d2h-code-side-emptyplaceholder, #diffViewer \.d2h-emptyplaceholder \{ background:var\(--bg-secondary\);/);
+  assert.match(diffCss, /\.diff-viewer \.d2h-code-side-emptyplaceholder, \.diff-viewer \.d2h-emptyplaceholder/);
   assert.match(diffCss, /\.is-collapsed > \.d2h-file-diff/);
   assert.match(diffCss, /\.diff-style-toggle \{ display:inline-flex; \}/);
   assert.match(diffCss, /label \{ display:inline-flex; align-items:center; gap:5px;/);
   assert.match(diffCss, /\.d2h-tag\.d2h-changed-tag \{ background:var\(--bg-tertiary\); color:var\(--text-primary\); border-color:var\(--border\); \}/);
   assert.match(diffViewer, /setAttribute\('aria-pressed', String\(style === 'unified'\)\)/);
   assert.match(diffViewer, /className = 'diff-collapse-toggle'/);
-  assert.match(diffViewer, /setCollapsed\(false\);/);
+  assert.match(diffViewer, /setCollapsed\(collapsedFiles\.get\(key\) \?\? false\);/);
   assert.match(diffViewer, /aria-expanded/);
   assert.match(diffViewer, /new window\.Diff2HtmlUI\(viewer\)\.highlightCode\(\)/);
+  assert.match(diffViewer, /const collapsedFiles = new Map\(\)/);
+  assert.match(diffViewer, /setCollapsed\(collapsedFiles\.get\(key\) \?\? false\)/);
 });
 
 test("resolves multiline diff selections on one compatible side", () => {
-  const context: { window: { AnnotationDiffViewer?: { resolveSelectionRows(rows: unknown[]): unknown } } } = { window: {} };
+  const context: { window: { AnnotationDiffViewer?: { resolveSelectionRows(rows: unknown[]): unknown; collapseKey(documentId: string, path: string): string } } } = { window: {} };
   vm.runInNewContext(readFileSync("form/diff-viewer.js", "utf8"), context);
   const resolve = context.window.AnnotationDiffViewer!.resolveSelectionRows;
   assert.deepEqual(JSON.parse(JSON.stringify(resolve([
@@ -262,33 +314,61 @@ test("resolves multiline diff selections on one compatible side", () => {
     { path: "src/app.ts", currentLine: 8 },
     { path: "src/other.ts", currentLine: 9 },
   ]), null);
+  assert.notEqual(context.window.AnnotationDiffViewer!.collapseKey("first", "app.ts"), context.window.AnnotationDiffViewer!.collapseKey("second", "app.ts"));
 });
 
-test("formats selected and overall annotation feedback", () => {
-  const selection = formatAnnotationFeedback([{
-    id: "selection", type: "suggestion", scope: "selection", text: "Add an example", originalText: "Details", range: { startOffset: 0, endOffset: 7, textPreview: "Details" }, createdAt: 0,
-  }], "response");
-  const overall = formatAnnotationFeedback([{
-    id: "overall", type: "issue", scope: "overall", text: "Missing summary", originalText: "", range: null, createdAt: 0,
-  }], "response");
+test("formats annotations by document order and full review", () => {
+  const sources = [{ id: "first", title: "First source", sourceInfo: "first" }, { id: "second", title: "Second source", sourceInfo: "second" }];
+  const feedback = formatAnnotationFeedback([
+    { id: "second", type: "issue", scope: "selection", documentId: "second", text: "Wrong value", originalText: "value", range: { startOffset: 0, endOffset: 5, textPreview: "value", diff: { documentId: "second", path: "src/app.ts", side: "current", startLine: 8, endLine: 12 } }, createdAt: 0 },
+    { id: "first", type: "suggestion", scope: "overall", documentId: "first", text: "Add an example", originalText: "", range: null, createdAt: 0 },
+    { id: "full", type: "comment", scope: "overall", documentId: null, text: "Good direction", originalText: "", range: null, createdAt: 0 },
+  ], sources);
+  assert.ok(feedback.indexOf("### First source") < feedback.indexOf("### Second source"));
+  assert.ok(feedback.indexOf("### Second source") < feedback.indexOf("### Full review"));
+  assert.match(feedback, /> Applies to: Overall comment for First source/);
+  assert.match(feedback, /> src\/app.ts:8-12 \(current\)/);
+  assert.match(feedback, /> Applies to: Full review/);
+  assert.match(feedback, /Please address the issues above\./);
+});
 
-  assert.equal(selection, `## Annotation Feedback
+test("reads all file arguments before producing ordered, deduplicated documents", () => {
+  const directory = mkdtempSync(join(tmpdir(), "pi-annotate-files-"));
+  try {
+    writeFileSync(join(directory, "one.md"), "one");
+    writeFileSync(join(directory, "two file.md"), "two");
+    const documents = readAnnotationDocuments(directory, 'one.md "two file.md" one.md');
+    assert.deepEqual(documents.map((entry) => [entry.title, entry.markdown]), [["one.md", "one"], ["two file.md", "two"]]);
+    assert.throws(() => readAnnotationDocuments(directory, "one.md missing.md"), /Cannot read/);
+  } finally { rmSync(directory, { recursive: true, force: true }); }
+});
 
-The following feedback was provided for response:
+test("tree marks survive filtering and open in tree order", () => {
+  const candidates = [
+    { id: "first", role: "user" as const, text: "first text", preview: "first", prefix: "", active: false },
+    { id: "second", role: "assistant" as const, text: "second text", preview: "second", prefix: "", active: true },
+  ];
+  const theme = { fg: (_: string, text: string) => text, bg: (_: string, text: string) => text, bold: (text: string) => text };
+  const keys = { matches: (data: string, binding: string) => ({ "tui.select.up": data === "up", "tui.select.down": data === "down", "tui.select.confirm": data === "enter", "tui.select.cancel": data === "esc", "tui.editor.deleteCharBackward": data === "backspace" }[binding] ?? false) };
+  let opened: string[] = [];
+  const selector = new AnnotationTreeSelector(candidates, theme, keys as never, 5, (selected) => { opened = selected.map((candidate) => candidate.id); }, () => {});
+  selector.handleInput(" "); // mark focused second
+  selector.handleInput("up");
+  selector.handleInput(" "); // mark first
+  selector.handleInput("/");
+  selector.handleInput("second");
+  selector.handleInput("esc");
+  selector.handleInput("enter");
+  assert.deepEqual(opened, ["first", "second"]);
 
-- **suggestion**: Suggestion
-  > Original text: "Details"
-  Add an example
+  const searchSelector = new AnnotationTreeSelector(candidates, theme, keys as never, 5, (selected) => { opened = selected.map((candidate) => candidate.id); }, () => {});
+  searchSelector.handleInput("/");
+  searchSelector.handleInput("first");
+  searchSelector.handleInput("enter");
+  assert.deepEqual(opened, ["first"]);
+});
 
-Please revise according to the suggestions above.`);
-  const diff = formatAnnotationFeedback([{
-    id: "diff", type: "issue", scope: "selection", text: "Wrong value", originalText: "value", range: { startOffset: 0, endOffset: 5, textPreview: "value", diff: { path: "src/app.ts", side: "current", startLine: 8, endLine: 8 } }, createdAt: 0,
-  }], "response");
-  assert.match(diff, /> src\/app.ts:8 \(current\)/);
-  const multiline = formatAnnotationFeedback([{ ...{
-    id: "multiline", type: "issue" as const, scope: "selection" as const, text: "Wrong range", originalText: "values", createdAt: 0,
-  }, range: { startOffset: 0, endOffset: 6, textPreview: "values", diff: { path: "src/app.ts", side: "current" as const, startLine: 8, endLine: 12 } } }], "response");
-  assert.match(multiline, /> src\/app.ts:8-12 \(current\)/);
-  assert.match(overall, /> Applies to: Overall response/);
-  assert.match(overall, /Please address the issues above\./);
+test("parses quoted annotation paths", () => {
+  assert.deepEqual(parseAnnotationPaths('"docs/my plan.md" @README.md \'a b\' c\\ d'), ["docs/my plan.md", "README.md", "a b", "c d"]);
+  assert.throws(() => parseAnnotationPaths('"unterminated'), /Unterminated/);
 });

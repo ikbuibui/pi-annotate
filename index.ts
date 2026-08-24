@@ -6,14 +6,14 @@
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { dirname, relative, resolve } from "node:path";
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import * as os from "node:os";
 import type {
   ExtensionAPI,
   ExtensionContext,
   ExtensionCommandContext,
 } from "@earendil-works/pi-coding-agent";
-import { formatAnnotationFeedback, type Annotation } from "./feedback-format.js";
+import { formatAnnotationFeedback, type Annotation, type AnnotationDocument, type AnnotationSource } from "./feedback-format.js";
 import { startAnnotationServer } from "./server.js";
 import { truncateToWidth, type KeybindingsManager } from "@earendil-works/pi-tui";
 import { getAnnotationCandidates, getInitialAnnotationCandidateIndex, type AnnotationCandidate } from "./message-tree.js";
@@ -60,104 +60,153 @@ function turnChangesFor(ctx: ExtensionContext, assistantEntryId: string): TurnFi
   return findStoredTurnChanges(ctx.sessionManager.getBranch(), assistantEntryId)?.changes ?? [];
 }
 
+function messageDocument(candidate: AnnotationCandidate): AnnotationDocument {
+  return {
+    id: `message:${candidate.id}`,
+    kind: "message",
+    title: `${candidate.role} message ${candidate.id}`,
+    sourceInfo: `${candidate.role} message ${candidate.id}`,
+    markdown: candidate.text,
+  };
+}
+
 interface TreeTheme {
   fg(color: "accent" | "success" | "muted" | "dim" | "warning" | "border", text: string): string;
   bg(color: "selectedBg", text: string): string;
   bold(text: string): string;
 }
 
-class AnnotationTreeSelector {
-  private selectedIndex: number;
+export class AnnotationTreeSelector {
+  private focusedId: string;
+  private markedIds = new Set<string>();
   private search = "";
+  private searchMode = false;
 
   constructor(
     private readonly candidates: AnnotationCandidate[],
     private readonly theme: TreeTheme,
     private readonly keybindings: KeybindingsManager,
     private readonly maxVisible: number,
-    private readonly onSelect: (candidate: AnnotationCandidate) => void,
+    private readonly onSelect: (candidates: AnnotationCandidate[]) => void,
     private readonly onCancel: () => void,
   ) {
-    this.selectedIndex = getInitialAnnotationCandidateIndex(candidates);
+    this.focusedId = candidates[getInitialAnnotationCandidateIndex(candidates)]?.id ?? "";
   }
 
   private filtered(): AnnotationCandidate[] {
     const terms = this.search.toLowerCase().split(/\s+/).filter(Boolean);
-    return terms.length
-      ? this.candidates.filter((candidate) => {
-        const text = `${candidate.role} ${candidate.label ?? ""} ${candidate.text}`.toLowerCase();
-        return terms.every((term) => text.includes(term));
-      })
-      : this.candidates;
+    return terms.length ? this.candidates.filter((candidate) => {
+      const text = `${candidate.role} ${candidate.label ?? ""} ${candidate.text}`.toLowerCase();
+      return terms.every((term) => text.includes(term));
+    }) : this.candidates;
+  }
+
+  private focusedIndex(candidates = this.filtered()): number {
+    const index = candidates.findIndex((candidate) => candidate.id === this.focusedId);
+    return index < 0 ? 0 : index;
   }
 
   private move(amount: number): void {
     const candidates = this.filtered();
-    this.selectedIndex = Math.max(0, Math.min(candidates.length - 1, this.selectedIndex + amount));
+    const candidate = candidates[Math.max(0, Math.min(candidates.length - 1, this.focusedIndex(candidates) + amount))];
+    if (candidate) this.focusedId = candidate.id;
+  }
+
+  private toggleMark(): void {
+    if (!this.focusedId) return;
+    if (this.markedIds.has(this.focusedId)) this.markedIds.delete(this.focusedId);
+    else this.markedIds.add(this.focusedId);
+  }
+
+  private refocusFiltered(): void {
+    const candidates = this.filtered();
+    if (!candidates.some((candidate) => candidate.id === this.focusedId)) this.focusedId = candidates[0]?.id ?? "";
   }
 
   invalidate(): void {}
 
   render(width: number): string[] {
     const candidates = this.filtered();
-    const start = Math.max(0, Math.min(this.selectedIndex - Math.floor(this.maxVisible / 2), candidates.length - this.maxVisible));
+    const focusedIndex = this.focusedIndex(candidates);
+    const start = Math.max(0, Math.min(focusedIndex - Math.floor(this.maxVisible / 2), candidates.length - this.maxVisible));
     const end = Math.min(start + this.maxVisible, candidates.length);
     const border = this.theme.fg("border", "─".repeat(width));
-    const lines = [
-      border,
-      truncateToWidth(this.theme.fg("accent", this.theme.bold("  Annotation Tree")), width),
-      truncateToWidth(this.theme.fg("muted", `  Type to search${this.search ? `: ${this.search}` : ""}`), width),
-      border,
-    ];
-
-    if (!candidates.length) {
-      lines.push(truncateToWidth(this.theme.fg("muted", "  No messages found"), width));
-    }
-
+    const lines = [border, truncateToWidth(this.theme.fg("accent", this.theme.bold("  Annotation Tree")), width),
+      truncateToWidth(this.theme.fg("muted", this.searchMode ? `  Search: ${this.search}` : "  / search · space mark"), width), border];
+    if (!candidates.length) lines.push(truncateToWidth(this.theme.fg("muted", "  No messages found"), width));
     for (let index = start; index < end; index++) {
       const candidate = candidates[index];
-      const selected = index === this.selectedIndex;
+      const focused = candidate.id === this.focusedId;
       const role = this.theme.fg(candidate.role === "user" ? "accent" : "success", `${candidate.role}: `);
       const active = candidate.active ? this.theme.fg("accent", "• ") : "  ";
       const label = candidate.label ? this.theme.fg("warning", `[${candidate.label}] `) : "";
-      let line = `${selected ? this.theme.fg("accent", "› ") : "  "}${this.theme.fg("dim", candidate.prefix)}${active}${label}${role}${candidate.preview}`;
-      if (selected) line = this.theme.bg("selectedBg", this.theme.bold(line));
+      let line = `${focused ? this.theme.fg("accent", "› ") : "  "}${this.markedIds.has(candidate.id) ? this.theme.fg("success", "[✓] ") : "[ ] "}${this.theme.fg("dim", candidate.prefix)}${active}${label}${role}${candidate.preview}`;
+      if (focused) line = this.theme.bg("selectedBg", this.theme.bold(line));
       lines.push(truncateToWidth(line, width));
     }
-
     lines.push(border);
-    lines.push(truncateToWidth(this.theme.fg("muted", `  (${candidates.length ? this.selectedIndex + 1 : 0}/${candidates.length})  ↑↓ move · ←→ page · enter annotate · esc cancel`), width));
+    lines.push(truncateToWidth(this.theme.fg("muted", `  (${candidates.length ? focusedIndex + 1 : 0}/${candidates.length})  ↑↓ move · space mark · enter Open review · esc cancel`), width));
     lines.push(border);
     return lines;
   }
 
   handleInput(data: string): void {
-    if (this.keybindings.matches(data, "tui.select.up")) {
-      this.move(-1);
-    } else if (this.keybindings.matches(data, "tui.select.down")) {
-      this.move(1);
-    } else if (this.keybindings.matches(data, "tui.select.pageUp") || this.keybindings.matches(data, "tui.editor.cursorLeft")) {
-      this.move(-this.maxVisible);
-    } else if (this.keybindings.matches(data, "tui.select.pageDown") || this.keybindings.matches(data, "tui.editor.cursorRight")) {
-      this.move(this.maxVisible);
-    } else if (this.keybindings.matches(data, "tui.select.confirm")) {
-      const candidate = this.filtered()[this.selectedIndex];
-      if (candidate) this.onSelect(candidate);
+    if (this.keybindings.matches(data, "tui.select.up")) this.move(-1);
+    else if (this.keybindings.matches(data, "tui.select.down")) this.move(1);
+    else if (this.keybindings.matches(data, "tui.select.pageUp") || this.keybindings.matches(data, "tui.editor.cursorLeft")) this.move(-this.maxVisible);
+    else if (this.keybindings.matches(data, "tui.select.pageDown") || this.keybindings.matches(data, "tui.editor.cursorRight")) this.move(this.maxVisible);
+    else if (this.keybindings.matches(data, "tui.select.confirm")) {
+      const selected = this.markedIds.size ? this.candidates.filter((candidate) => this.markedIds.has(candidate.id)) : this.filtered().filter((candidate) => candidate.id === this.focusedId);
+      if (selected.length) this.onSelect(selected);
     } else if (this.keybindings.matches(data, "tui.select.cancel")) {
-      if (this.search) {
-        this.search = "";
-        this.selectedIndex = getInitialAnnotationCandidateIndex(this.candidates);
-      } else {
-        this.onCancel();
-      }
-    } else if (this.keybindings.matches(data, "tui.editor.deleteCharBackward") && this.search) {
+      if (this.searchMode) { this.search = ""; this.searchMode = false; this.refocusFiltered(); }
+      else this.onCancel();
+    } else if (data === "/" && !this.searchMode) this.searchMode = true;
+    else if (this.keybindings.matches(data, "tui.editor.deleteCharBackward") && this.searchMode) {
       this.search = this.search.slice(0, -1);
-      this.selectedIndex = 0;
-    } else if (![...data].some((char) => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127)) {
+      this.refocusFiltered();
+    } else if (data === " " && !this.searchMode) this.toggleMark();
+    else if (this.searchMode && ![...data].some((char) => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127)) {
       this.search += data;
-      this.selectedIndex = 0;
+      this.refocusFiltered();
     }
   }
+}
+
+export function parseAnnotationPaths(args: string): string[] {
+  const paths: string[] = [];
+  let token = "";
+  let quote = "";
+  let escaped = false;
+  const push = () => { if (token) paths.push(token.replace(/^@/, "")); token = ""; };
+  for (const char of args.trim()) {
+    if (escaped) { token += char; escaped = false; }
+    else if (char === "\\") escaped = true;
+    else if (quote) { if (char === quote) quote = ""; else token += char; }
+    else if (char === "'" || char === '"') quote = char;
+    else if (/\s/.test(char)) push();
+    else token += char;
+  }
+  if (escaped) token += "\\";
+  if (quote) throw new Error("Unterminated quoted path");
+  push();
+  return paths;
+}
+
+export function readAnnotationDocuments(cwd: string, args: string): AnnotationDocument[] {
+  const seen = new Set<string>();
+  return parseAnnotationPaths(args).flatMap((path) => {
+    const absolutePath = resolve(cwd, path);
+    if (seen.has(absolutePath)) return [];
+    seen.add(absolutePath);
+    let markdown: string;
+    try {
+      markdown = readFileSync(absolutePath, "utf-8");
+    } catch (err) {
+      throw new Error(`Cannot read ${absolutePath}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    return [{ id: `file:${absolutePath}`, kind: "file", title: path, sourceInfo: path, markdown }];
+  });
 }
 
 // ── Shared annotation flow ─────────────────────────────────────────────
@@ -183,11 +232,9 @@ async function openAnnotationServer(
   pi: ExtensionAPI,
   ctx: ExtensionCommandContext,
   options: {
-    markdown: string;
+    documents: AnnotationDocument[];
     mode: "annotate" | "annotate-last";
-    sourceInfo: string;
     notificationTarget?: string;
-    changes?: TurnFileChange[];
   },
   reviewGate: ReviewGate,
 ): Promise<void> {
@@ -195,12 +242,10 @@ async function openAnnotationServer(
   const assets = readAnnotateAssets();
 
   const server = await startAnnotationServer({
-    markdown: options.markdown,
+    documents: options.documents,
     htmlContent,
     mode: options.mode,
-    sourceInfo: options.sourceInfo,
     gate: false,
-    changes: options.changes,
     themes: loadAnnotationThemes(),
     assets,
   });
@@ -216,14 +261,14 @@ async function openAnnotationServer(
     await openUrl(pi, server.url);
     ctx.ui.notify(
       [
-        `Annotation review opened for: ${options.notificationTarget ?? options.sourceInfo}`,
+        `Annotation review opened for: ${options.notificationTarget ?? options.documents.map((document) => document.title).join(", ")}`,
         "Terminal submission is disabled until review completes.",
         "Send feedback, approve, or close the tab to continue.",
       ].join("\n"),
       "info",
     );
     const decision = await server.waitForDecision();
-    handleAnnotationDecision(pi, ctx, decision, options.sourceInfo, options.markdown);
+    handleAnnotationDecision(pi, ctx, decision, options.documents.map(({ id, title, sourceInfo }) => ({ id, title, sourceInfo })));
   } catch (err) {
     ctx.ui.notify(`Failed to open annotation: ${err instanceof Error ? err.message : String(err)}`, "error");
   } finally {
@@ -237,15 +282,15 @@ export function handleAnnotationDecision(
   pi: ExtensionAPI,
   ctx: ExtensionCommandContext,
   decision: { action: "feedback" | "approve" | "exit"; feedback?: string; annotations?: Annotation[] },
-  sourceInfo: string,
-  originalMarkdown: string,
+  sources: AnnotationSource[],
 ): void {
+  const sourceInfo = sources.map((source) => source.sourceInfo).join(", ");
   switch (decision.action) {
     case "feedback": {
       let feedbackText = decision.feedback;
       // Format structured annotations when no feedback text was provided
       if (!feedbackText && decision.annotations && decision.annotations.length > 0) {
-        feedbackText = formatAnnotationFeedback(decision.annotations, sourceInfo);
+        feedbackText = formatAnnotationFeedback(decision.annotations, sources);
       }
       // Fall back to a default feedback message
       if (!feedbackText) {
@@ -326,10 +371,15 @@ export default function (pi: ExtensionAPI) {
       }
 
       return openAnnotationServer(pi, ctx, {
-        markdown: assistant.text,
-        changes: turnChangesFor(ctx, assistant.id),
+        documents: [{
+          id: `message:${assistant.id}`,
+          kind: "message",
+          title: "Last assistant message",
+          sourceInfo: "last assistant message",
+          markdown: assistant.text,
+          changes: turnChangesFor(ctx, assistant.id),
+        }],
         mode: "annotate-last",
-        sourceInfo: "last assistant message",
         notificationTarget: "last assistant message",
       }, reviewGate);
     },
@@ -353,9 +403,9 @@ export default function (pi: ExtensionAPI) {
             return;
           }
 
-          let selected: AnnotationCandidate | null | undefined;
+          let selected: AnnotationCandidate[] | null | undefined;
           if (ctx.mode === "tui") {
-            selected = await ctx.ui.custom<AnnotationCandidate | null>((tui, theme, keybindings, done) => {
+            selected = await ctx.ui.custom<AnnotationCandidate[] | null>((tui, theme, keybindings, done) => {
               const selector = new AnnotationTreeSelector(
                 candidates,
                 theme,
@@ -376,34 +426,29 @@ export default function (pi: ExtensionAPI) {
           } else {
             const options = candidates.map((candidate) => `${candidate.prefix}${candidate.role}: ${candidate.preview} [${candidate.id}]`);
             const choice = await ctx.ui.select("Select a message to annotate", options);
-            selected = candidates[options.indexOf(choice ?? "")];
+            const candidate = candidates[options.indexOf(choice ?? "")];
+            selected = candidate ? [candidate] : null;
           }
-          if (!selected) return;
+          if (!selected?.length) return;
 
-          const preview = selected.preview.length > 80 ? `${selected.preview.slice(0, 80)}…` : selected.preview;
+          const documents = selected.map((candidate) => ({
+            ...messageDocument(candidate),
+            changes: candidate.role === "assistant" ? turnChangesFor(ctx, candidate.id) : [],
+          }));
+          const preview = selected[0].preview.length > 80 ? `${selected[0].preview.slice(0, 80)}…` : selected[0].preview;
           return openAnnotationServer(pi, ctx, {
-            markdown: selected.text,
-            changes: selected.role === "assistant" ? turnChangesFor(ctx, selected.id) : [],
+            documents,
             mode: "annotate",
-            sourceInfo: `${selected.role} message ${selected.id}`,
-            notificationTarget: `${selected.role} message: “${preview}”`,
+            notificationTarget: `${selected.length} message${selected.length === 1 ? "" : "s"}: “${preview}”`,
           }, reviewGate);
         }
 
-        const absolutePath = resolve(ctx.cwd, filePath);
-
-        if (!existsSync(absolutePath)) {
-          ctx.ui.notify(`File not found: ${absolutePath}`, "error");
-          return;
-        }
-
-        const content = readFileSync(absolutePath, "utf-8");
-
+        const documents = readAnnotationDocuments(ctx.cwd, args);
+        if (!documents.length) throw new Error("No file paths provided");
         return openAnnotationServer(pi, ctx, {
-          markdown: content,
+          documents,
           mode: "annotate",
-          sourceInfo: filePath,
-          notificationTarget: `file: ${filePath}`,
+          notificationTarget: `file${documents.length === 1 ? "" : "s"}: ${documents.map((document) => document.title).join(", ")}`,
         }, reviewGate);
       } catch (err) {
         ctx.ui.notify(`Annotation failed: ${err instanceof Error ? err.message : String(err)}`, "error");

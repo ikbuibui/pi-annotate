@@ -27,14 +27,14 @@ Restart pi or run `/reload` to load the extension.
 
 ## Features
 
-- **Message Annotation**: Select any previous user or assistant message from the session tree, or annotate the last assistant message directly
-- **Document Annotation**: Open any markdown file (specs, plans, design docs) in a visual annotation UI
+- **Message Annotation**: Mark one or more previous user or assistant messages from the session tree, collapse message sections as needed, or annotate the last assistant message directly
+- **Document Annotation**: Open one or more markdown files (specs, plans, design docs) in one ordered visual review
 - **Turn File Diffs**: Annotating an assistant response includes unified or side-by-side diffs for files changed with `edit` or `write` in that response's turn
 - **Annotation Types**: Comment, Suggestion, Issue, and Praise — each with distinct color coding
 - **Quick Labels**: One-click preset labels for common feedback (needs clarification, missing details, verify assumption, etc.)
 - **Floating Toolbar**: Select text to reveal Comment, Suggestion, Issue, Delete, Quick Label, and Looks Good actions
 - **Text Feedback Popups**: Comment, Suggestion, and Issue each open a focused text-entry popup
-- **Overall Comments**: Add comment feedback for the whole response from the bottom action bar
+- **Three Comment Scopes**: Annotate selected text, add an overall comment for one source section, or add a full-review comment
 - **Feedback Delivery**: Annotations are sent back to the agent as a structured follow-up message
 - **Approve Without Feedback**: When no annotations exist, approve documents directly
 - **Themes**: Select built-in or installed browser palettes; `⌘+Shift+L` cycles them (`Ctrl` off macOS)
@@ -52,7 +52,7 @@ Restart pi or run `/reload` to load the extension.
 ```
 
 **Lifecycle:**
-1. Run `/annotate`, `/annotate <file>`, or `/annotate-last`
+1. Run `/annotate`, `/annotate <file> [file...]`, or `/annotate-last`
 2. Local server starts → annotation UI opens in the system browser
 3. Select text in the document → floating toolbar appears with annotation actions
 4. Add overall comments from the bottom action bar, or select text for Comment, Suggestion, Issue, Quick Label, Delete, or Praise
@@ -85,17 +85,21 @@ Without a file, select any previous user or assistant message from the session t
 /annotate
 ```
 
-With a file, annotate that markdown document:
+With files, annotate one or more documents in argument order. Quotes and escapes preserve paths with spaces:
 
 ```
 /annotate docs/superpowers/specs/my-design.md
-/annotate PLAN.md
+/annotate "docs/my plan.md" README.md
+/annotate @PLAN.md @README.md
 ```
+
+Every path is resolved and read before the browser opens; a missing or unreadable path opens no partial review. Duplicate resolved paths are shown once, at their first position.
 
 File paths support:
 - Relative paths (from current working directory)
 - Absolute paths
-- `@` prefix notation (e.g., `@docs/superpowers/specs/...`)
+- `@` prefix notation on each path (e.g., `@docs/superpowers/specs/...`)
+- Single quotes, double quotes, and backslash escapes
 
 Turn diffs cover the built-in `edit` and `write` tools. Shell commands and custom tools are not tracked because their filesystem effects cannot be attributed reliably without workspace snapshots.
 
@@ -133,10 +137,10 @@ Preset labels for common feedback on specs, plans, and messages:
 
 ### Annotation Panel
 
-All annotations appear in the right sidebar panel. Use **Overall comment** in the bottom action bar to comment on the entire response. Each annotation shows:
+All annotations appear in the right sidebar panel with their source title. Message sections are visually grouped as cards and can collapse their content and diffs without hiding their section comment action. Each source section has **Overall comment for this section**; use **Full review comment** in the bottom action bar for feedback that applies across all sources. For a one-source review, only **Overall comment** is shown. Each annotation shows:
 - Type badge with color coding (Comment/Suggestion/Issue/Praise)
 - Annotation text
-- Original selected text preview, or an Overall response marker
+- Original selected text preview, or its section/full-review scope
 - Timestamp
 - Edit (✏️) and Delete (🗑️) buttons
 
@@ -146,6 +150,18 @@ All annotations appear in the right sidebar panel. Use **Overall comment** in th
 |-----|--------|
 | `⌘+Shift+L` | Cycle installed browser themes (`Ctrl` off macOS) |
 | `1`-`9`, `0` | Select Quick Label by number (when picker open) |
+
+### Message selector
+
+| Key | Action |
+|-----|--------|
+| `↑` / `↓` | Move focus |
+| `Space` | Mark or unmark the focused message |
+| `Enter` | **Open review** for marked messages, or the focused message when none are marked |
+| `/` | Search messages |
+| `Esc` | Clear active search, or cancel |
+
+Marked messages stay marked while searching. Reviews use the displayed tree order, never mark order.
 
 ## Custom Browser Themes
 
@@ -196,8 +212,10 @@ The following feedback was provided for docs/superpowers/specs/my-design.md:
 - **issue**: Error handling strategy is missing
   > Original text: "The system will return an error message on failure"
 
+### Full review
+
 - **comment**: The response should start with a short summary.
-  > Applies to: Overall response
+  > Applies to: Full review
 
 Please address the issues above.
 ```

@@ -292,24 +292,40 @@
       margin: 0.6em 0;
     }
 
-    #content table {
+    .document-content table {
       border-collapse: collapse;
       width: 100%;
       margin: 0.8em 0;
       font-size: 13px;
     }
-    #content th, #content td {
+    .document-content th, .document-content td {
       border: 1px solid var(--border);
       padding: 6px 12px;
       text-align: left;
     }
-    #content th {
+    .document-content th {
       background: var(--bg-secondary);
       font-weight: 600;
     }
-    #content tr:nth-child(even) {
+    .document-content tr:nth-child(even) {
       background: rgba(255,255,255,0.02);
     }
+
+    .annotation-document { margin-bottom: 32px; }
+    .annotation-document:last-child { margin-bottom: 0; }
+    .annotation-document--message { margin-bottom: 40px; border: 1px solid var(--border-light); border-radius: var(--radius); background: var(--bg-secondary); box-shadow: var(--shadow); overflow: hidden; }
+    .document-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 12px; }
+    .annotation-document--message .document-header { margin: 0; padding: 10px 14px; background: var(--bg-tertiary); }
+    .annotation-document--message .document-body { padding: 4px 16px 16px; background: var(--bg-secondary); }
+    .document-header h2 { font-size: 1.15em; margin: 0; }
+    .document-title { display: flex; align-items: center; gap: 6px; min-width: 0; }
+    .message-badge { padding: 1px 7px; border: 1px solid var(--border-light); border-radius: 10px; color: var(--text-secondary); font-size: 10px; font-weight: 600; letter-spacing: .4px; text-transform: uppercase; }
+    .document-collapse-toggle { border: 0; background: none; color: var(--text-secondary); cursor: pointer; font: inherit; padding: 2px 4px; }
+    .document-collapse-toggle span { display: block; transition: transform .15s; }
+    .document-collapse-toggle[aria-expanded="true"] span { transform: rotate(90deg); }
+    .document-header .btn-overall-comment { padding: 5px 10px; flex-shrink: 0; }
+    .document-body[hidden] { display: none; }
+    .diff-viewer { display: none; margin-top: 20px; }
 
     /* ===== Markdown Blocks (for selection tracking) ===== */
     .md-block {
@@ -949,6 +965,9 @@
     /* ===== Responsive ===== */
     @media (max-width: 600px) {
       .toolbar-left { display: none; }
+      .document-header { align-items: flex-start; flex-wrap: wrap; }
+      .document-title { min-width: 0; flex: 1; }
+      .document-header .btn-overall-comment { margin-left: auto; }
       .toolbar { padding: 0 8px; }
       .toolbar-right { margin-left: auto; gap: 4px; }
       .btn-toolbar { padding: 8px 10px; }
@@ -1000,8 +1019,7 @@
         <div class="loading-spinner"></div>
         <p style="color:var(--text-muted);">Loading content...</p>
       </div>
-      <div id="content" style="display:none;"></div>
-      <div id="diffViewer"></div>
+      <div id="documents" style="display:none;"></div>
       <div id="errorState" style="display:none;flex-direction:column;align-items:center;justify-content:center;height:60vh;">
         <div class="msg-icon" style="font-size:36px;margin-bottom:12px;">⚠️</div>
         <p style="color:var(--text-secondary);font-size:14px;">Failed to load content</p>
@@ -1023,7 +1041,7 @@
       <label>Theme <select class="theme-select" id="themeSelect" aria-label="Theme"></select></label>
     </div>
     <div class="toolbar-right">
-      <button class="btn-toolbar btn-overall-comment" id="btnOverallComment">Overall comment</button>
+      <button class="btn-toolbar btn-overall-comment" id="btnFullReviewComment">Full review comment</button>
       <button class="btn-toolbar btn-feedback" id="btnFeedback" disabled>Send Feedback</button>
       <button class="btn-toolbar btn-approve" id="btnApprove">Approve without feedback</button>
     </div>
@@ -1145,71 +1163,56 @@
 
   /* ===== Text Selection & Annotation Creation ===== */
 
-  let pendingRange = null; // { startOffset, endOffset, textPreview, selRect? }
+  let pendingRange = null; // { documentId, startOffset, endOffset, textPreview, selRect? }
+
+  function nodeElement(node) {
+    return node && (node.nodeType === 1 ? node : node.parentElement);
+  }
+
+  function annotationDocument(id) {
+    return planData?.documents?.find(function(document) { return document.id === id; });
+  }
+
+  function documentSection(id) {
+    return annotationDocument(id)?.element || null;
+  }
 
   function handleTextSelection() {
     const sel = window.getSelection();
-    if (!sel || sel.isCollapsed || !sel.toString().trim()) {
-      return;
-    }
-
+    if (!sel || sel.isCollapsed || !sel.toString().trim()) return;
     const range = sel.getRangeAt(0);
     if (!range) return;
 
-    // Find the .md-block ancestors
-    let startNode = range.startContainer;
-    let endNode = range.endContainer;
-    while (startNode && startNode.nodeType === 3) startNode = startNode.parentNode;
-    while (endNode && endNode.nodeType === 3) endNode = endNode.parentNode;
+    const startDocument = nodeElement(range.startContainer)?.closest('.annotation-document');
+    const endDocument = nodeElement(range.endContainer)?.closest('.annotation-document');
+    if (!startDocument || startDocument !== endDocument) return;
+    const documentId = startDocument.dataset.documentId;
+    const source = annotationDocument(documentId);
+    if (!documentId || !source) return;
 
-    // Walk up to find .md-block
-    let startBlock = startNode;
-    let endBlock = endNode;
-    while (startBlock && !startBlock.classList?.contains('md-block')) startBlock = startBlock.parentNode;
-    while (endBlock && !endBlock.classList?.contains('md-block')) endBlock = endBlock.parentNode;
-
+    let startBlock = nodeElement(range.startContainer)?.closest('.md-block');
+    let endBlock = nodeElement(range.endContainer)?.closest('.md-block');
     if (!!startBlock !== !!endBlock) return;
-
-    if (!startBlock && !endBlock) {
-      const diff = window.AnnotationDiffViewer.resolveRange(range, document.getElementById('diffViewer'));
+    if (!startBlock) {
+      const diff = window.AnnotationDiffViewer.resolveRange(range, startDocument.querySelector('.diff-viewer'));
       if (!diff) return;
-      const selectedText = sel.toString().trim();
       const rect = range.getBoundingClientRect();
-      pendingRange = {
-        startOffset: 0, endOffset: 0, textPreview: selectedText,
-        diff: diff,
-        selRect: { top: rect.top, bottom: rect.bottom, left: rect.left, width: rect.width }
-      };
+      pendingRange = { documentId, startOffset: 0, endOffset: 0, textPreview: sel.toString().trim(), diff: Object.assign(diff, { documentId }),
+        selRect: { top: rect.top, bottom: rect.bottom, left: rect.left, width: rect.width } };
       showFloatingToolbar(range);
       return;
     }
 
-    const startOffset = startBlock ? parseInt(startBlock.dataset.offsetStart) : 0;
-    const endOffset = endBlock ? parseInt(endBlock.dataset.offsetEnd) : (planData?.plan?.length || 0);
-
+    const startOffset = parseInt(startBlock.dataset.offsetStart);
+    const endOffset = parseInt(endBlock.dataset.offsetEnd);
     const selectedText = sel.toString().trim();
-    if (!selectedText) return;
-
-    // Find text in original markdown for more precise range
-    let origStart = planData.plan.indexOf(selectedText, startOffset);
+    let origStart = source.markdown.indexOf(selectedText, startOffset);
     let origEnd = origStart >= 0 ? origStart + selectedText.length : endOffset;
-    if (origStart < 0) {
-      // Fallback: use block offsets
-      origStart = startOffset;
-      origEnd = endOffset;
-    }
-
-    const preview = selectedText.length > 80 ? selectedText.slice(0, 80) + '…' : selectedText;
-
-    var selRect = range.getBoundingClientRect();
-
-    pendingRange = {
-      startOffset: origStart,
-      endOffset: origEnd,
-      textPreview: preview,
-      selRect: { top: selRect.top, bottom: selRect.bottom, left: selRect.left, width: selRect.width }
-    };
-
+    if (origStart < 0) { origStart = startOffset; origEnd = endOffset; }
+    const rect = range.getBoundingClientRect();
+    pendingRange = { documentId, startOffset: origStart, endOffset: origEnd,
+      textPreview: selectedText.length > 80 ? selectedText.slice(0, 80) + '…' : selectedText,
+      selRect: { top: rect.top, bottom: rect.bottom, left: rect.left, width: rect.width } };
     showFloatingToolbar(range);
   }
 
@@ -1237,11 +1240,12 @@
 
   /* ===== Annotation Management ===== */
 
-  function addAnnotation(type, text, range) {
+  function addAnnotation(type, text, range, documentId) {
     const ann = {
       id: generateId(),
       type: type,
       scope: range ? 'selection' : 'overall',
+      documentId: range ? range.documentId : documentId,
       text: text.trim(),
       originalText: range ? range.textPreview : '',
       range: range ? {
@@ -1297,8 +1301,10 @@
 
     annotations.forEach(ann => {
       if (!ann.range) return;
+      const section = documentSection(ann.documentId);
+      if (!section) return;
       const cls = 'highlight-' + (typeColorMap[ann.type] || 'comment');
-      blocks.forEach(block => {
+      section.querySelectorAll('.md-block').forEach(block => {
         const blockStart = parseInt(block.dataset.offsetStart);
         const blockEnd = parseInt(block.dataset.offsetEnd);
         if (blockStart >= ann.range.startOffset && blockStart < ann.range.endOffset) {
@@ -1325,7 +1331,22 @@
   function scrollToAnnotation(id) {
     const ann = annotations.find(a => a.id === id);
     if (!ann || !ann.range) return;
-    const blocks = document.querySelectorAll('.md-block');
+    const section = documentSection(ann.documentId);
+    if (!section) return;
+    if (ann.range.diff) {
+      const diff = ann.range.diff;
+      const lineKey = diff.side === 'original' ? 'diffOriginalLine' : 'diffCurrentLine';
+      const row = Array.from(section.querySelectorAll('.diff-viewer tr[data-diff-path]')).find(function(candidate) {
+        const line = Number(candidate.dataset[lineKey]);
+        return candidate.dataset.diffPath === diff.path && line >= diff.startLine && line <= diff.endLine;
+      });
+      if (!row) return;
+      row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      row.style.outline = '2px solid var(--accent)';
+      setTimeout(function() { row.style.outline = ''; }, 2000);
+      return;
+    }
+    const blocks = section.querySelectorAll('.md-block');
     for (const block of blocks) {
       const blockStart = parseInt(block.dataset.offsetStart);
       const blockEnd = parseInt(block.dataset.offsetEnd);
@@ -1392,9 +1413,10 @@
         html += '<div class="ann-card-text">' + (ann.text ? escapeHtml(ann.text) : '<span class="empty-text">(empty)</span>') + '</div>';
       }
 
+      const documentTitle = ann.documentId === null ? 'Full review' : (annotationDocument(ann.documentId)?.title || 'Source section');
       html += ann.scope === 'overall'
-        ? '<div class="ann-card-original">Overall response</div>'
-        : '<div class="ann-card-original" title="' + escapeHtml(ann.originalText) + '">' + escapeHtml(ann.originalText) + '</div>';
+        ? '<div class="ann-card-original">' + escapeHtml(documentTitle) + '</div>'
+        : '<div class="ann-card-original" title="' + escapeHtml(documentTitle + ': ' + ann.originalText) + '">' + escapeHtml(documentTitle + ': ' + ann.originalText) + '</div>';
       html += '<div class="ann-card-time">' + formatTime(ann.createdAt) + '</div>';
       html += '</div>';
     });
@@ -1481,12 +1503,14 @@
 
   let selectedType = 'comment';
   let popupRange = null;
+  let popupDocumentId = null;
   let popupActive = false;
 
-  function showCreationPopup(type, range) {
+  function showCreationPopup(type, range, documentId) {
     hideFloatingToolbar();
     selectedType = type;
     popupRange = range || null;
+    popupDocumentId = range ? range.documentId : documentId;
     popupActive = true;
 
     const labels = { comment: 'Comment', suggestion: 'Suggestion', issue: 'Issue' };
@@ -1532,6 +1556,7 @@
     document.getElementById('creationOverlay').classList.remove('active');
     popupActive = false;
     popupRange = null;
+    popupDocumentId = null;
     pendingRange = null;
   }
 
@@ -1539,7 +1564,7 @@
     const text = document.getElementById('annTextInput').value.trim();
     if (!text) return;
 
-    addAnnotation(selectedType, text, popupRange);
+    addAnnotation(selectedType, text, popupRange, popupDocumentId);
     hideCreationPopup();
   }
 
@@ -1562,8 +1587,8 @@
 
   /* ===== Floating Toolbar Actions ===== */
 
-  document.getElementById('btnOverallComment').addEventListener('click', function() {
-    showCreationPopup('comment', null);
+  document.getElementById('btnFullReviewComment').addEventListener('click', function() {
+    showCreationPopup('comment', null, null);
   });
 
   document.getElementById('tbComment').addEventListener('click', function() {
@@ -1706,6 +1731,7 @@
         id: a.id,
         type: a.type,
         scope: a.scope,
+        documentId: a.documentId,
         text: a.text,
         originalText: a.originalText,
         range: a.range,
@@ -1922,37 +1948,49 @@
         '3. Third item\n\n' +
         'Use the **Send Feedback** button at the bottom to submit your annotations to the server. ' +
         'Or use **Exit** to close without submitting.';
-      planData = { plan: demoPlan, mode: 'annotate', sourceInfo: '(Demo Mode)' };
-      _hoveredBlock = null;  // Clear the hover reference before replacing the DOM
-      var contentDiv = document.getElementById('content');
-      document.getElementById('loadingState').style.display = 'none';
-      contentDiv.style.display = 'block';
-      contentDiv.innerHTML = '<pre class="md-block" data-offset-start="0" data-offset-end="' + demoPlan.length + '"><code>' + escapeHtml(demoPlan) + '</code></pre>';
-      return;
+      planData = { documents: [{ id: 'demo', title: '(Demo Mode)', sourceInfo: '(Demo Mode)', markdown: demoPlan,
+        html: '<pre class="md-block" data-offset-start="0" data-offset-end="' + demoPlan.length + '"><code>' + escapeHtml(demoPlan) + '</code></pre>', hasChanges: false }] };
     }
 
-    // Render markdown
-    _hoveredBlock = null;  // Clear the hover reference before replacing the DOM
-    var contentDiv = document.getElementById('content');
+    _hoveredBlock = null;
+    const documentsDiv = document.getElementById('documents');
     document.getElementById('loadingState').style.display = 'none';
-    contentDiv.style.display = 'block';
-    contentDiv.innerHTML = planData.html || '<p class="md-block" data-offset-start="0" data-offset-end="0" style="color:var(--text-muted)">(empty content)</p>';
+    documentsDiv.style.display = 'block';
+    const singleDocument = planData.documents.length === 1;
+    document.getElementById('btnFullReviewComment').style.display = singleDocument ? 'none' : '';
+    planData.documents.forEach(function(annotationSource) {
+      const section = document.createElement('section');
+      const isMessage = annotationSource.kind === 'message';
+      section.className = 'annotation-document' + (isMessage ? ' annotation-document--message' : '');
+      section.dataset.documentId = annotationSource.id;
+      section.innerHTML = '<div class="document-header"><div class="document-title">' +
+        (isMessage ? '<button class="document-collapse-toggle" type="button" aria-expanded="true" aria-label="Collapse ' + escapeHtml(annotationSource.title) + '"><span aria-hidden="true">▸</span></button><span class="message-badge">Message</span>' : '') +
+        '<h2>' + escapeHtml(annotationSource.title) + '</h2></div>' +
+        '<button class="btn-toolbar btn-overall-comment" type="button">' + (singleDocument ? 'Overall comment' : 'Overall comment for this section') + '</button></div>' +
+        '<div class="document-body"><div class="document-content">' + (annotationSource.html || '<p class="md-block" data-offset-start="0" data-offset-end="0" style="color:var(--text-muted)">(empty content)</p>') + '</div><div class="diff-viewer"></div></div>';
+      section.querySelector('.btn-overall-comment').addEventListener('click', function() { showCreationPopup('comment', null, annotationSource.id); });
+      const collapseToggle = section.querySelector('.document-collapse-toggle');
+      if (collapseToggle) collapseToggle.addEventListener('click', function() {
+        const body = section.querySelector('.document-body');
+        body.hidden = !body.hidden;
+        collapseToggle.setAttribute('aria-expanded', String(!body.hidden));
+        collapseToggle.setAttribute('aria-label', (body.hidden ? 'Expand ' : 'Collapse ') + annotationSource.title);
+      });
+      annotationSource.element = section;
+      documentsDiv.append(section);
+    });
 
     // Add subtle scroll margin to blocks for smooth scrolling
     const style = document.createElement('style');
     style.textContent = '.md-block { scroll-margin-top: 100px; }';
     document.head.appendChild(style);
 
-    // Update source info from API if not already set
-    if (!SOURCE_INFO && planData.sourceInfo) {
-      sourceEl.textContent = planData.sourceInfo;
-    }
+    if (!SOURCE_INFO) sourceEl.textContent = planData.documents.length === 1 ? planData.documents[0].sourceInfo : planData.documents.length + ' sources';
 
-    // Initial badge update
     updateBadge();
     updateButtons();
-    window.AnnotationDiffViewer.install();
-    window.AnnotationDiffViewer.mount();
+    window.AnnotationDiffViewer.install(function() { return planData.documents; });
+    window.AnnotationDiffViewer.mount(planData.documents);
 
     // Notify server when window is closed (reliable using fetch + keepalive)
     function notifyExit() {

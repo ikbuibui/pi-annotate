@@ -7,20 +7,17 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { randomUUID } from "node:crypto";
 import MarkdownIt, { type RendererRule } from "markdown-it";
 import hljs from "highlight.js/lib/common";
-import type { Annotation } from "./feedback-format.js";
+import type { Annotation, AnnotationDocument } from "./feedback-format.js";
 import { renderTurnFileDiffHtml } from "./diff/render.js";
-import type { TurnFileChange } from "./diff/types.js";
 import type { BrowserTheme } from "./theme.js";
 
 export type { Annotation } from "./feedback-format.js";
 
 interface AnnotationServerOptions {
-  markdown: string;
+  documents: AnnotationDocument[];
   htmlContent: string;
   mode: "annotate" | "annotate-last";
-  sourceInfo?: string;
   gate?: boolean;
-  changes?: TurnFileChange[];
   themes?: BrowserTheme[];
   assets?: Record<string, { content: string; contentType: string }>;
 }
@@ -203,8 +200,9 @@ export function renderMarkdown(markdown: string): string {
 export async function startAnnotationServer(
   options: AnnotationServerOptions
 ): Promise<AnnotationServerHandle> {
-  const { markdown, htmlContent, mode, sourceInfo, gate, changes = [], themes = [], assets = {} } = options;
-  const renderedMarkdown = renderMarkdown(markdown);
+  const { documents, htmlContent, mode, gate, themes = [], assets = {} } = options;
+  if (!documents.length) throw new Error("At least one annotation document is required");
+  const renderedDocuments = documents.map((document) => ({ ...document, html: renderMarkdown(document.markdown) }));
   const sessionToken = randomUUID();
 
   let resolved = false;
@@ -242,7 +240,6 @@ export async function startAnnotationServer(
         const inlineData = safeInlineJSON({
           sessionToken,
           mode,
-          sourceInfo: sourceInfo ?? null,
           gate: gate ?? false,
           themes,
           startedAt: Date.now(),
@@ -262,10 +259,17 @@ export async function startAnnotationServer(
       if (method === "GET" && url.pathname === "/api/diffs") {
         const style = url.searchParams.get("style") === "side-by-side" ? "side-by-side" : "unified";
         const ignoreWhitespace = url.searchParams.get("ignoreWhitespace") === "true";
-        const files = changes.map((change) => ({
+        const documentId = url.searchParams.get("documentId");
+        const selected = documents.filter((document) => document.id === documentId);
+        if (!documentId || !selected.length) {
+          sendJson(res, 400, { ok: false, error: "A valid documentId is required" });
+          return;
+        }
+        const files = selected.flatMap((document) => (document.changes ?? []).map((change) => ({
+          documentId: document.id,
           path: change.path,
           html: renderTurnFileDiffHtml(change, style, ignoreWhitespace),
-        }));
+        })));
         sendJson(res, 200, { changes: files.length, files });
         return;
       }
@@ -277,10 +281,8 @@ export async function startAnnotationServer(
 
       if (method === "GET" && url.pathname === "/api/plan") {
         sendJson(res, 200, {
-          plan: markdown,
-          html: renderedMarkdown,
+          documents: renderedDocuments.map(({ changes, ...document }) => ({ ...document, hasChanges: Boolean(changes?.length) })),
           mode,
-          sourceInfo: sourceInfo ?? null,
           gate: gate ?? false,
         });
         return;
