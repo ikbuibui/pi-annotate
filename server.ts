@@ -124,6 +124,10 @@ function safeInlineJSON(data: unknown): string {
     .replace(/&/g, "\\u0026");
 }
 
+function isMarkdownFile(path: string): boolean {
+  return /\.(?:md|markdown|mdown|mkd)$/i.test(path);
+}
+
 function detectFileLanguage(path: string): string | null {
   const name = path.split(/[\\/]/).pop()?.toLowerCase() ?? "";
   const language = ({
@@ -138,9 +142,19 @@ function detectFileLanguage(path: string): string | null {
   return language && hljs.getLanguage(language) ? language : null;
 }
 
+function escapeHtml(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
 function renderCodeFile(code: string, language: string): string {
-  const html = hljs.highlight(code, { language, ignoreIllegals: true }).value;
+  const html = language === "unknown" ? escapeHtml(code) : hljs.highlight(code, { language, ignoreIllegals: true }).value;
   return `<div class="md-block code-file" data-offset-start="0" data-offset-end="${code.length}"><pre><code class="hljs language-${language}">${html}</code></pre></div>`;
+}
+
+function renderDocument(document: AnnotationDocument): AnnotationDocument & { html: string; language?: string } {
+  if (document.kind !== "file" || isMarkdownFile(document.title)) return { ...document, html: renderMarkdown(document.markdown) };
+  const language = detectFileLanguage(document.title) ?? "unknown";
+  return { ...document, language, html: renderCodeFile(document.markdown, language) };
 }
 
 const markdownRenderer = new MarkdownIt({
@@ -223,10 +237,8 @@ export async function startAnnotationServer(
 ): Promise<AnnotationServerHandle> {
   const { documents, htmlContent, mode, gate, themes = [], assets = {}, preferencePath } = options;
   if (!documents.length) throw new Error("At least one annotation document is required");
-  const renderedDocuments = documents.map((document) => {
-    const language = document.kind === "file" && !/\.md(?:own)?$/i.test(document.title) && detectFileLanguage(document.title);
-    return { ...document, html: language ? renderCodeFile(document.markdown, language) : renderMarkdown(document.markdown) };
-  });
+  const renderedDocuments = documents.map(renderDocument);
+  const languages = ["unknown", ...hljs.listLanguages().sort()];
   const sessionToken = randomUUID();
 
   let resolved = false;
@@ -331,9 +343,22 @@ export async function startAnnotationServer(
       if (method === "GET" && url.pathname === "/api/plan") {
         sendJson(res, 200, {
           documents: renderedDocuments.map(({ changes, ...document }) => ({ ...document, hasChanges: Boolean(changes?.length) })),
+          languages,
           mode,
           gate: gate ?? false,
         });
+        return;
+      }
+
+      if (method === "GET" && url.pathname === "/api/render-code") {
+        const documentId = url.searchParams.get("documentId");
+        const language = url.searchParams.get("language");
+        const document = documents.find((candidate) => candidate.id === documentId);
+        if (!document || document.kind !== "file" || !language || !languages.includes(language)) {
+          sendJson(res, 400, { ok: false, error: "A valid file documentId and language are required" });
+          return;
+        }
+        sendJson(res, 200, { html: renderCodeFile(document.markdown, language), language });
         return;
       }
 

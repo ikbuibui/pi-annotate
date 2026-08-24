@@ -102,7 +102,9 @@ test("highlights recognized code files while preserving Markdown files", async (
       document("app.ts", "const answer = 42;"),
       document("CVec.hpp", "#include <vector>"),
       document("page.html", "<script>alert(1)</script>"),
+      document("mystery.foo", "<script>alert(1)</script>\n# Heading"),
       document("README.md", "# Heading"),
+      { id: "message", kind: "message" as const, title: "Message", sourceInfo: "message", markdown: "const answer = 42;" },
     ],
     htmlContent: "", mode: "annotate",
   });
@@ -114,7 +116,19 @@ test("highlights recognized code files while preserving Markdown files", async (
     assert.match(documents[1].html, /class="hljs language-cpp"/);
     assert.match(documents[2].html, /&lt;<span class="hljs-name">script<\/span>&gt;/);
     assert.doesNotMatch(documents[2].html, /<script>/);
-    assert.match(documents[3].html, /<h1 class="md-block"[^>]*>Heading<\/h1>/);
+    assert.equal(documents[3].language, "unknown");
+    assert.match(documents[3].html, /&lt;script&gt;/);
+    assert.doesNotMatch(documents[3].html, /<h1/);
+    assert.match(documents[4].html, /<h1 class="md-block"[^>]*>Heading<\/h1>/);
+    const plan = await (await fetch(`${server.url}/api/plan`)).json() as { languages: string[] };
+    assert.ok(plan.languages.includes("unknown"));
+    assert.ok(plan.languages.includes("typescript"));
+    const rendered = await (await fetch(`${server.url}/api/render-code?documentId=mystery.foo&language=typescript`)).json() as { language: string; html: string };
+    assert.equal(rendered.language, "typescript");
+    assert.match(rendered.html, /language-typescript/);
+    assert.equal((await fetch(`${server.url}/api/render-code?documentId=mystery.foo&language=unknown`)).status, 200);
+    assert.equal((await fetch(`${server.url}/api/render-code?documentId=mystery.foo&language=invalid`)).status, 400);
+    assert.equal((await fetch(`${server.url}/api/render-code?documentId=message&language=typescript`)).status, 400);
   } finally { server.stop(); }
 });
 
@@ -333,6 +347,10 @@ test("loads the Diff2Html UI highlighter before mounting diffs", () => {
   assert.match(page, /annotation-document--' \+ annotationSource\.kind/);
   assert.match(page, /\.annotation-document \{ margin-bottom: 32px; border: 1px solid var\(--border-light\);/);
   assert.match(page, /source-badge--' \+ annotationSource\.kind/);
+  assert.match(page, /className = 'language-select'/);
+  assert.match(page, /Syntax language; auto-selected from file extension\./);
+  assert.match(page, /\/api\/render-code\?documentId=/);
+  assert.match(page, /highlightAnnotations\(\);/);
   assert.match(page, /isMessage \? 'Message' : 'File'/);
   assert.match(page, /document-collapse-toggle/);
   assert.match(page, /id="sourceInfo" type="button" aria-expanded="false" aria-controls="sourceMenu"/);

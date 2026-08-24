@@ -28,7 +28,7 @@ Restart pi or run `/reload` to load the extension.
 ## Features
 
 - **Message Annotation**: Mark one or more previous user or assistant messages from the session tree, collapse message sections as needed, or annotate the last assistant message directly
-- **File Annotation**: Open Markdown documents or recognized code files in one ordered visual review; code files use syntax highlighting
+- **File Annotation**: Open Markdown documents or code files in one ordered visual review; code languages are auto-detected, selectable from the file header, and fall back to `unknown`
 - **Turn File Diffs**: Annotating an assistant response includes unified or side-by-side diffs for files changed with `edit` or `write` in that response's turn
 - **Annotation Types**: Comment, Suggestion, Issue, and Praise — each with distinct color coding
 - **Quick Labels**: One-click preset labels for common feedback, including needs clarification, missing details, and verify assumption

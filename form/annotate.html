@@ -347,6 +347,9 @@
     .document-title { display: flex; align-items: center; gap: 6px; min-width: 0; }
     .source-badge { padding: 1px 7px; border: 1px solid var(--border-light); border-radius: 10px; color: var(--text-secondary); font-size: 10px; font-weight: 600; letter-spacing: .4px; text-transform: uppercase; flex-shrink: 0; }
     .source-badge--file { color: var(--accent); }
+    .language-select { max-width: 120px; border: 1px solid var(--border-light); border-radius: 10px; background: var(--bg-secondary); color: var(--text-secondary); cursor: pointer; font: inherit; font-size: 10px; font-weight: 600; letter-spacing: .4px; padding: 2px 7px; text-transform: uppercase; }
+    .language-select:hover, .language-select:focus-visible { border-color: var(--accent); color: var(--text-primary); outline: none; }
+    .language-select:disabled { cursor: wait; opacity: .6; }
     .document-collapse-toggle { border: 0; background: none; color: var(--text-secondary); cursor: pointer; font: inherit; padding: 2px 4px; }
     .document-collapse-toggle span { display: block; transition: transform .15s; }
     .document-collapse-toggle[aria-expanded="true"] span { transform: rotate(90deg); }
@@ -2039,6 +2042,36 @@
         '<h2>' + escapeHtml(annotationSource.title) + '</h2></div>' +
         '<button class="btn-toolbar btn-overall-comment" type="button">' + (singleDocument ? 'Overall comment' : 'Overall comment for this section') + '</button></div>' +
         '<div class="document-body"><div class="document-content">' + (annotationSource.html || '<p class="md-block" data-offset-start="0" data-offset-end="0" style="color:var(--text-muted)">(empty content)</p>') + '</div><div class="diff-viewer"></div></div>';
+      if (annotationSource.language) {
+        const languageSelect = document.createElement('select');
+        languageSelect.className = 'language-select';
+        languageSelect.setAttribute('aria-label', 'Syntax language for ' + annotationSource.title);
+        languageSelect.title = 'Syntax language; auto-selected from file extension.';
+        (planData.languages || ['unknown']).forEach(function(language) {
+          const option = document.createElement('option');
+          option.value = language;
+          option.textContent = language;
+          option.selected = language === annotationSource.language;
+          languageSelect.appendChild(option);
+        });
+        languageSelect.addEventListener('change', async function() {
+          const previousLanguage = annotationSource.language;
+          languageSelect.disabled = true;
+          try {
+            const response = await fetch('/api/render-code?documentId=' + encodeURIComponent(annotationSource.id) + '&language=' + encodeURIComponent(languageSelect.value));
+            if (!response.ok) throw new Error('Could not render code');
+            const rendered = await response.json();
+            section.querySelector('.document-content').innerHTML = rendered.html;
+            annotationSource.language = rendered.language;
+            highlightAnnotations();
+          } catch {
+            languageSelect.value = previousLanguage;
+          } finally {
+            languageSelect.disabled = false;
+          }
+        });
+        section.querySelector('.document-title').appendChild(languageSelect);
+      }
       section.querySelector('.btn-overall-comment').addEventListener('click', function() { showCreationPopup('comment', null, annotationSource.id); });
       const collapseToggle = section.querySelector('.document-collapse-toggle');
       if (collapseToggle) collapseToggle.addEventListener('click', function() {
