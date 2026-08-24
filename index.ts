@@ -447,11 +447,6 @@ export default function (pi: ExtensionAPI) {
             ctx.sessionManager.getTree(),
             ctx.sessionManager.getLeafId(),
           );
-          if (!candidates.length) {
-            ctx.ui.notify("No messages found", "error");
-            return;
-          }
-
           let selection: AnnotationTreeSelection | null | undefined;
           if (ctx.mode === "tui") {
             selection = await ctx.ui.custom<AnnotationTreeSelection | null>((tui, theme, keybindings, done) => {
@@ -472,11 +467,13 @@ export default function (pi: ExtensionAPI) {
                 },
               };
             });
-          } else {
+          } else if (candidates.length) {
             const options = candidates.map((candidate) => `${candidate.prefix}${candidate.role}: ${candidate.preview} [${candidate.id}]`);
             const choice = await ctx.ui.select("Select a message to annotate", options);
             const candidate = candidates[options.indexOf(choice ?? "")];
             selection = candidate ? { candidates: [candidate], addFiles: false } : null;
+          } else {
+            selection = { candidates: [], addFiles: true };
           }
           if (!selection || (!selection.candidates.length && !selection.addFiles)) return;
 

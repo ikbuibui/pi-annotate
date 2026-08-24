@@ -79,7 +79,7 @@ Select text in the message, add annotations or quick labels, and send feedback t
 
 ### `/annotate <file> [file...]`
 
-Without a file, select any previous user or assistant message from the session tree:
+Without a file, select previous user or assistant messages from the session tree, or press `f` to add files. This also works when the tree is empty:
 
 ```
 /annotate

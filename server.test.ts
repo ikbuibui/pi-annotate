@@ -455,6 +455,15 @@ test("reads all file arguments before producing ordered, deduplicated documents"
   } finally { rmSync(directory, { recursive: true, force: true }); }
 });
 
+test("empty annotation tree can open a file-only review", () => {
+  const theme = { fg: (_: string, text: string) => text, bg: (_: string, text: string) => text, bold: (text: string) => text };
+  const keys = { matches: () => false };
+  let opened: AnnotationTreeSelection | undefined;
+  const selector = new AnnotationTreeSelector([], theme, keys as never, 5, (selected) => { opened = selected; }, () => {});
+  selector.handleInput("f");
+  assert.deepEqual(opened, { candidates: [], addFiles: true });
+});
+
 test("tree marks survive filtering and open in tree order", () => {
   const candidates = [
     { id: "first", role: "user" as const, text: "first text", preview: "first", prefix: "", active: false },
