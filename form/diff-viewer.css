@@ -19,16 +19,13 @@
 .diff-viewer .diff-collapse-toggle span { display:block; transition:transform .15s; }
 .diff-viewer .diff-collapse-toggle[aria-expanded="true"] span { transform:rotate(90deg); }
 .diff-viewer .d2h-file-header :is(a, button, input, label) { cursor:pointer; }
-.diff-viewer .d2h-diff-table { margin:0; font-size:inherit; line-height:1.45; }
-.diff-viewer .d2h-diff-table td { border-color:var(--border); padding:0; }
-.diff-viewer .d2h-code-linenumber, .diff-viewer .d2h-code-side-linenumber { display:table-cell; position:static; padding:0 8px; vertical-align:top; }
+.diff-viewer .d2h-diff-table { margin:0; font-size:inherit; }
+.diff-viewer .d2h-diff-table td { border-color:var(--border); }
+.diff-viewer .d2h-diff-table tr { position:relative; }
+.diff-viewer .d2h-code-linenumber, .diff-viewer .d2h-code-side-linenumber { top:0; left:0; }
 .diff-viewer .d2h-code-side-emptyplaceholder, .diff-viewer .d2h-emptyplaceholder { background:var(--bg-secondary); border-color:var(--border); }
-.diff-viewer .d2h-code-linenumber { width:7em; }
-.diff-viewer .d2h-code-side-linenumber { width:3.5em; }
-.diff-viewer .d2h-code-line, .diff-viewer .d2h-code-side-line { display:block; width:auto; padding:0 8px; background:transparent; color:var(--text-primary); }
-.diff-viewer .d2h-code-line-ctn { width:auto; }
 .diff-viewer .d2h-info { background:var(--bg-secondary); color:var(--text-secondary); }
 .diff-viewer .d2h-tag.d2h-changed-tag { background:var(--bg-tertiary); color:var(--text-primary); border-color:var(--border); }
 .diff-viewer .d2h-del, .diff-viewer .d2h-file-diff .d2h-del.d2h-change { background:var(--type-issue-bg); border-color:transparent; }
 .diff-viewer .d2h-ins, .diff-viewer .d2h-file-diff .d2h-ins.d2h-change { background:var(--type-suggestion-bg); border-color:transparent; }
-.diff-viewer .d2h-code-line del, .diff-viewer .d2h-code-line ins, .diff-viewer .d2h-code-side-line del, .diff-viewer .d2h-code-side-line ins { background:transparent; border-radius:0; }
+.diff-viewer .d2h-code-line del, .diff-viewer .d2h-code-line ins, .diff-viewer .d2h-code-side-line del, .diff-viewer .d2h-code-side-line ins { display:inline; margin:0; background:transparent; border-radius:0; }

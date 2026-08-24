@@ -234,6 +234,7 @@ test("aligns side-by-side changed lines by content", () => {
   );
   const [left, right] = html.match(/<table[\s\S]*?<\/table>/g)!;
 
+  assert.equal(rows(left).length, rows(right).length);
   assert.deepEqual(rows(left).slice(1), ["", "1 - const alpha = oldValue ;", "2 - const beta = oldValue ;"]);
   assert.deepEqual(rows(right).slice(1), ["1 + const leading = value;", "2 + const alpha = newValue ;", "3 + const beta = newValue ;"]);
 });
@@ -290,10 +291,14 @@ test("loads the Diff2Html UI highlighter before mounting diffs", () => {
   const diffCss = readFileSync("form/diff-viewer.css", "utf8");
   const diffViewer = readFileSync("form/diff-viewer.js", "utf8");
   assert.match(diffCss, /\.diff-viewer \.d2h-code-side-emptyplaceholder, \.diff-viewer \.d2h-emptyplaceholder/);
+  assert.doesNotMatch(diffCss, /d2h-code-side-emptyplaceholder::after|d2h-files-diff :is|position:static|display:table-cell|padding:0 \.5em|d2h-code-line-ctn \{|--diff-row-height|min-height:var\(/);
+  assert.match(diffCss, /\.d2h-diff-table tr \{ position:relative; \}/);
+  assert.match(diffCss, /\.d2h-code-linenumber, \.diff-viewer \.d2h-code-side-linenumber \{ top:0; left:0; \}/);
   assert.match(diffCss, /\.is-collapsed > \.d2h-file-diff/);
   assert.match(diffCss, /\.diff-style-toggle \{ display:inline-flex; \}/);
   assert.match(diffCss, /label \{ display:inline-flex; align-items:center; gap:5px;/);
   assert.match(diffCss, /\.d2h-tag\.d2h-changed-tag \{ background:var\(--bg-tertiary\); color:var\(--text-primary\); border-color:var\(--border\); \}/);
+  assert.match(diffCss, /\.d2h-code-side-line del, \.diff-viewer \.d2h-code-side-line ins \{ display:inline; margin:0;/);
   assert.match(diffViewer, /setAttribute\('aria-pressed', String\(style === 'unified'\)\)/);
   assert.match(diffViewer, /className = 'diff-collapse-toggle'/);
   assert.match(diffViewer, /setCollapsed\(collapsedFiles\.get\(key\) \?\? false\);/);
@@ -301,6 +306,7 @@ test("loads the Diff2Html UI highlighter before mounting diffs", () => {
   assert.match(diffViewer, /new window\.Diff2HtmlUI\(viewer\)\.highlightCode\(\)/);
   assert.match(diffViewer, /const collapsedFiles = new Map\(\)/);
   assert.match(diffViewer, /setCollapsed\(collapsedFiles\.get\(key\) \?\? false\)/);
+  assert.doesNotMatch(diffViewer, /alignSideBySideRows/);
 });
 
 test("resolves multiline diff selections on one compatible side", () => {
@@ -321,6 +327,7 @@ test("resolves multiline diff selections on one compatible side", () => {
     { path: "src/other.ts", currentLine: 9 },
   ]), null);
   assert.notEqual(context.window.AnnotationDiffViewer!.collapseKey("first", "app.ts"), context.window.AnnotationDiffViewer!.collapseKey("second", "app.ts"));
+
 });
 
 test("formats annotations by document order and full review", () => {
