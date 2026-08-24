@@ -21,6 +21,7 @@ import { CHANGE_ENTRY_TYPE, findStoredTurnChanges } from "./diff/session.js";
 import { TurnChangeTracker } from "./diff/tracker.js";
 import type { TurnFileChange } from "./diff/types.js";
 import { loadAnnotationThemes } from "./theme.js";
+import { ReviewGate, handleReviewTerminalInput } from "./review-gate.js";
 
 async function openUrl(pi: ExtensionAPI, url: string): Promise<void> {
   const platform = os.platform();
@@ -188,6 +189,7 @@ async function openAnnotationServer(
     notificationTarget?: string;
     changes?: TurnFileChange[];
   },
+  reviewGate: ReviewGate,
 ): Promise<void> {
   const htmlContent = await readAnnotateHtml();
   const assets = readAnnotateAssets();
@@ -204,12 +206,18 @@ async function openAnnotationServer(
   });
 
   // Open the annotation UI in the system browser.
+  reviewGate.start();
+  const unsubscribe = ctx.mode === "tui"
+    ? ctx.ui.onTerminalInput((data) => handleReviewTerminalInput(reviewGate, data, () => {
+      ctx.ui.notify("Finish or close the annotation review before sending another prompt.", "warning");
+    }))
+    : () => {};
   try {
     await openUrl(pi, server.url);
     ctx.ui.notify(
       [
         `Annotation review opened for: ${options.notificationTarget ?? options.sourceInfo}`,
-        "Terminal input is paused until the review is completed.",
+        "Terminal submission is disabled until review completes.",
         "Send feedback, approve, or close the tab to continue.",
       ].join("\n"),
       "info",
@@ -220,10 +228,12 @@ async function openAnnotationServer(
     ctx.ui.notify(`Failed to open annotation: ${err instanceof Error ? err.message : String(err)}`, "error");
   } finally {
     server.stop();
+    unsubscribe();
+    reviewGate.finish();
   }
 }
 
-function handleAnnotationDecision(
+export function handleAnnotationDecision(
   pi: ExtensionAPI,
   ctx: ExtensionCommandContext,
   decision: { action: "feedback" | "approve" | "exit"; feedback?: string; annotations?: Annotation[] },
@@ -257,6 +267,15 @@ function handleAnnotationDecision(
 
 export default function (pi: ExtensionAPI) {
   const turnChanges = new TurnChangeTracker();
+  const reviewGate = new ReviewGate();
+
+  pi.on("input", (event, ctx) => {
+    const result = reviewGate.handleInput(event);
+    if (result.action === "handled") {
+      ctx.ui.notify("Finish or close the annotation review before sending another prompt.", "warning");
+    }
+    return result;
+  });
 
   pi.on("before_agent_start", () => turnChanges.reset());
 
@@ -312,7 +331,7 @@ export default function (pi: ExtensionAPI) {
         mode: "annotate-last",
         sourceInfo: "last assistant message",
         notificationTarget: "last assistant message",
-      });
+      }, reviewGate);
     },
   });
 
@@ -368,7 +387,7 @@ export default function (pi: ExtensionAPI) {
             mode: "annotate",
             sourceInfo: `${selected.role} message ${selected.id}`,
             notificationTarget: `${selected.role} message: “${preview}”`,
-          });
+          }, reviewGate);
         }
 
         const absolutePath = resolve(ctx.cwd, filePath);
@@ -385,7 +404,7 @@ export default function (pi: ExtensionAPI) {
           mode: "annotate",
           sourceInfo: filePath,
           notificationTarget: `file: ${filePath}`,
-        });
+        }, reviewGate);
       } catch (err) {
         ctx.ui.notify(`Annotation failed: ${err instanceof Error ? err.message : String(err)}`, "error");
       }

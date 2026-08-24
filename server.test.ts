@@ -6,7 +6,9 @@ import test from "node:test";
 import vm from "node:vm";
 import { gzipSync } from "node:zlib";
 import { formatAnnotationFeedback } from "./feedback-format.js";
+import { handleAnnotationDecision } from "./index.js";
 import { getAnnotationCandidates, getInitialAnnotationCandidateIndex } from "./message-tree.js";
+import { ReviewGate, handleReviewTerminalInput } from "./review-gate.js";
 import { renderMarkdown, startAnnotationServer } from "./server.js";
 import { changedFilesMarkdown, createTurnPatch, renderTurnFileDiffHtml } from "./diff/render.js";
 import { findStoredTurnChanges } from "./diff/session.js";
@@ -24,6 +26,45 @@ function change(path: string, original: string, modified: string): TurnFileChang
     },
   };
 }
+
+test("blocks non-extension prompts only while review is open", () => {
+  const gate = new ReviewGate();
+  assert.deepEqual(gate.handleInput({ source: "interactive" }), { action: "continue" });
+
+  gate.start();
+  assert.deepEqual(gate.handleInput({ source: "interactive" }), { action: "handled" });
+  assert.deepEqual(gate.handleInput({ source: "rpc" }), { action: "handled" });
+  assert.deepEqual(gate.handleInput({ source: "extension" }), { action: "continue" });
+  gate.finish();
+  assert.deepEqual(gate.handleInput({ source: "interactive" }), { action: "continue" });
+});
+
+test("blocks only Return while review is open", () => {
+  const gate = new ReviewGate();
+  let notifications = 0;
+  const handle = (data: string) => handleReviewTerminalInput(gate, data, () => { notifications++; });
+
+  assert.equal(handle("\r"), undefined);
+  gate.start();
+  assert.equal(handle("x"), undefined);
+  assert.deepEqual(handle("\r"), { consume: true });
+  assert.equal(notifications, 1);
+});
+
+test("review decisions do not replay blocked prompts", () => {
+  for (const [decision, expected] of [
+    [{ action: "feedback" as const, feedback: "annotation feedback" }, ["annotation feedback"]],
+    [{ action: "approve" as const }, []],
+    [{ action: "exit" as const }, []],
+  ] as const) {
+    const sent: string[] = [];
+    const pi = { sendUserMessage: (content: string) => sent.push(content) };
+    const ctx = { ui: { notify: () => {} } };
+
+    handleAnnotationDecision(pi as never, ctx as never, decision, "response", "");
+    assert.deepEqual(sent, expected);
+  }
+});
 
 test("renders Markdown with annotation source offsets", () => {
   const html = renderMarkdown("Before\n# Heading\n\n- parent\n  - child\n\n| A | B |\n| - | - |\n| 1 | 2 |\n\n~~~js\nalert(1)\n~~~\n\n<script>x</script>");

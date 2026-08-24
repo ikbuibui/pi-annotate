@@ -60,7 +60,8 @@ Restart pi or run `/reload` to load the extension.
    - **Send Feedback** → annotations sent back to agent as follow-up message
    - **Approve without feedback** → document approved, no feedback sent (available when no annotations exist)
    - **Close tab** → session ends without feedback
-6. After sending feedback or approving, the browser may keep the tab open.
+6. In the TUI, Return is blocked while review is open, preserving the editor draft and blocking both prompts and slash commands. Finish, approve, or close the review before sending another prompt.
+7. After sending feedback or approving, the browser may keep the tab open.
 
 ## Usage
 
@@ -210,4 +211,5 @@ The ending is context-aware:
 
 - Max 5MB request body for feedback submission
 - Sessions stay open until feedback, approval, exit, or a normal tab close
+- TUI prompt and slash-command submission is blocked while review is open
 - Single concurrent annotation session
