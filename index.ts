@@ -13,7 +13,7 @@ import type {
   ExtensionContext,
   ExtensionCommandContext,
 } from "@earendil-works/pi-coding-agent";
-import { formatAnnotationFeedback, type Annotation, type AnnotationDocument, type AnnotationSource } from "./feedback-format.js";
+import { formatFeedback, type Annotation, type AnnotationDocument, type AnnotationSource, type FeedbackFormatter } from "./feedback-format.js";
 import { startAnnotationServer } from "./server.js";
 import { CombinedAutocompleteProvider, Editor, truncateToWidth, type EditorTheme, type KeybindingsManager } from "@earendil-works/pi-tui";
 import { getAnnotationCandidates, getInitialAnnotationCandidateIndex, type AnnotationCandidate } from "./message-tree.js";
@@ -331,6 +331,7 @@ export function handleAnnotationDecision(
   ctx: ExtensionCommandContext,
   decision: { action: "feedback" | "approve" | "exit"; feedback?: string; annotations?: Annotation[] },
   sources: AnnotationSource[],
+  formatter: FeedbackFormatter = formatFeedback,
 ): void {
   const sourceInfo = sources.map((source) => source.sourceInfo).join(", ");
   switch (decision.action) {
@@ -338,7 +339,7 @@ export function handleAnnotationDecision(
       let feedbackText = decision.feedback;
       // Format structured annotations when no feedback text was provided
       if (!feedbackText && decision.annotations && decision.annotations.length > 0) {
-        feedbackText = formatAnnotationFeedback(decision.annotations, sources);
+        feedbackText = formatter(decision.annotations, sources);
       }
       // Fall back to a default feedback message
       if (!feedbackText) {

@@ -227,6 +227,22 @@ The ending is context-aware:
 - If there are **suggestions**: "Please revise according to the suggestions above."
 - Otherwise: "Please consider the feedback above."
 
+### Customize the format
+
+`formatFeedback` separates formatting from annotation collection and delivery. Pass only the parts you want to change:
+
+```ts
+import { formatFeedback } from "./feedback-format.js";
+
+const feedback = formatFeedback(annotations, sources, {
+  heading: "# Review notes",
+  formatItem: ({ annotation, target }) => `[${annotation.type}] ${target}: ${annotation.text}`,
+  formatEnding: () => "End of review.",
+});
+```
+
+This customizes the built-in grouped text layout while retaining all structured annotation data. For a wholly different format such as JSON or XML, implement `FeedbackFormatter` directly and pass it to `handleAnnotationDecision`.
+
 ## Limits
 
 - Max 5MB request body for feedback submission

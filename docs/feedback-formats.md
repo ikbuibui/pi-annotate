@@ -34,7 +34,28 @@ The model receives this one follow-up message in the existing pi session. It doe
 
 Use the hybrid format when evidence shows the current previews are insufficient: keep readable Markdown, add each annotation's stable ID and source range, include a bounded source excerpt, and state the requested action explicitly. Keep the document itself out of the message; the agent can read the named file when it needs wider context.
 
-The formatter is already isolated behind `FeedbackFormatter`, so adding that second formatter can be a small, opt-in change without changing the UI or delivery path.
+## Customization
+
+`formatFeedback(annotations, sources, overrides)` keeps feedback formatting independent of annotation collection and delivery. Override only the callbacks you need:
+
+```ts
+import { formatFeedback } from "./feedback-format.js";
+
+const feedback = formatFeedback(annotations, sources, {
+  heading: "# Review notes",
+  formatItem: ({ annotation, target }) => `[${annotation.type}] ${target}: ${annotation.text}`,
+  formatEnding: () => "End of review.",
+});
+```
+
+The item callback receives the complete annotation, its optional source, and its target label. The source-heading, full-review-heading, and ending callbacks are equally replaceable, so this function is suited to Markdown or compact text without changing the UI or delivery code.
+
+To replace the entire output—for example, with JSON or XML—implement `FeedbackFormatter` directly and pass it to `handleAnnotationDecision`:
+
+```ts
+const jsonFormatter: FeedbackFormatter = (annotations, sources) =>
+  JSON.stringify({ annotations, sources });
+```
 
 ## Document auto-detection
 

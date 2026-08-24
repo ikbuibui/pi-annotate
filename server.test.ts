@@ -6,7 +6,7 @@ import test from "node:test";
 import vm from "node:vm";
 import { gzipSync } from "node:zlib";
 import { CombinedAutocompleteProvider } from "@earendil-works/pi-tui";
-import { formatAnnotationFeedback } from "./feedback-format.js";
+import { formatFeedback, type FeedbackFormatter } from "./feedback-format.js";
 import { AnnotationTreeSelector, handleAnnotationDecision, parseAnnotationPaths, readAnnotationDocuments, type AnnotationTreeSelection } from "./index.js";
 import { getAnnotationCandidates, getInitialAnnotationCandidateIndex } from "./message-tree.js";
 import { ReviewGate, handleReviewTerminalInput } from "./review-gate.js";
@@ -372,7 +372,7 @@ test("resolves multiline diff selections on one compatible side", () => {
 
 test("formats annotations by document order and full review", () => {
   const sources = [{ id: "first", title: "First source", sourceInfo: "first" }, { id: "second", title: "Second source", sourceInfo: "second" }];
-  const feedback = formatAnnotationFeedback([
+  const feedback = formatFeedback([
     { id: "second", type: "issue", scope: "selection", documentId: "second", text: "Wrong value", originalText: "value", range: { startOffset: 0, endOffset: 5, textPreview: "value", diff: { documentId: "second", path: "src/app.ts", side: "current", startLine: 8, endLine: 12 } }, createdAt: 0 },
     { id: "first", type: "suggestion", scope: "overall", documentId: "first", text: "Add an example", originalText: "", range: null, createdAt: 0 },
     { id: "full", type: "comment", scope: "overall", documentId: null, text: "Good direction", originalText: "", range: null, createdAt: 0 },
@@ -383,6 +383,25 @@ test("formats annotations by document order and full review", () => {
   assert.match(feedback, /> src\/app.ts:8-12 \(current\)/);
   assert.match(feedback, /> Applies to: Full review/);
   assert.match(feedback, /Please address the issues above\./);
+});
+
+test("allows feedback format customization without changing annotation delivery", () => {
+  const formatter: FeedbackFormatter = (annotations, sources) => formatFeedback(annotations, sources, {
+    heading: "# Review notes",
+    formatItem: ({ annotation, target }) => `[${annotation.type}] ${target}: ${annotation.text}`,
+    formatEnding: () => "End of review.",
+  });
+  const annotation = { id: "item", type: "comment" as const, scope: "overall" as const, documentId: "source", text: "Use a named constant", originalText: "", range: null, createdAt: 0 };
+  const expected = "# Review notes\n\nThe following feedback was provided:\n\n### Source\n\n[comment] Overall comment for Source: Use a named constant\n\nEnd of review.";
+  assert.equal(formatter([annotation], [{ id: "source", title: "Source", sourceInfo: "src/app.ts" }]), expected);
+
+  const sent: string[] = [];
+  handleAnnotationDecision({ sendUserMessage: (content: string) => sent.push(content) } as never, { ui: { notify: () => {} } } as never, { action: "feedback", annotations: [annotation] }, [{ id: "source", title: "Source", sourceInfo: "src/app.ts" }], formatter);
+  assert.equal(sent[0], expected);
+
+  const jsonFormatter: FeedbackFormatter = (annotations, sources) => JSON.stringify({ annotations, sources });
+  handleAnnotationDecision({ sendUserMessage: (content: string) => sent.push(content) } as never, { ui: { notify: () => {} } } as never, { action: "feedback", annotations: [annotation] }, [{ id: "source", title: "Source", sourceInfo: "src/app.ts" }], jsonFormatter);
+  assert.deepEqual(JSON.parse(sent[1]), { annotations: [annotation], sources: [{ id: "source", title: "Source", sourceInfo: "src/app.ts" }] });
 });
 
 test("reads all file arguments before producing ordered, deduplicated documents", () => {
