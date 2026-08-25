@@ -338,37 +338,46 @@ test("serves independently rendered per-file diffs and assets", async () => {
 
 test("loads the Diff2Html UI highlighter before mounting diffs", () => {
   const page = readFileSync("form/annotate.html", "utf8");
-  assert.match(page, /<script src="\/assets\/diff2html-ui\.js"><\/script>\s*<script src="\/assets\/diff-viewer\.js"><\/script>/);
+  const css = readFileSync("form/annotate.css", "utf8");
+  const js = readFileSync("form/annotate.js", "utf8");
+  // Scripts load in dependency order: diff2html-ui, diff-viewer, then annotate (app).
+  const diff2htmlIdx = page.indexOf("<script src=\"/assets/diff2html-ui.js\">");
+  const diffViewerIdx = page.indexOf("<script src=\"/assets/diff-viewer.js\">");
+  const bootstrapIdx = page.indexOf("__ANNOTATE_DATA__");
+  const annotateIdx = page.indexOf("<script src=\"/assets/annotate.js\">");
+  assert.ok(diff2htmlIdx >= 0 && diff2htmlIdx < diffViewerIdx && diffViewerIdx < bootstrapIdx && bootstrapIdx < annotateIdx,
+    "expected script order: diff2html-ui < diff-viewer < inject < annotate");
+  // server.ts replaces this token with a string .replace (single occurrence), so it must appear exactly once.
+  assert.strictEqual((page.match(/__ANNOTATE_DATA__/g) ?? []).length, 1);
   assert.match(page, /id="themeSelect"/);
-  assert.match(page, /ANNOTATE_DATA\.themes/);
   assert.match(page, /<div class="panel-header"><span>Annotations<\/span><span class="annotation-badge" id="annBadge">/);
   assert.match(page, /id="btnFullReviewComment">Full review comment<\/button>/);
-  assert.match(page, /Overall comment for this section/);
-  assert.match(page, /annotation-document/);
-  assert.match(page, /startDocument !== endDocument/);
-  assert.match(page, /documentId: range \? range\.documentId : documentId/);
-  assert.match(page, /\.diff-viewer tr\[data-diff-path\]/);
-  assert.match(page, /annotationSource\.kind === 'message'/);
-  assert.match(page, /annotation-document--' \+ annotationSource\.kind/);
-  assert.match(page, /\.annotation-document \{ margin-bottom: 32px; border: 1px solid var\(--border-light\);/);
-  assert.match(page, /source-badge--' \+ annotationSource\.kind/);
-  assert.match(page, /className = 'language-select'/);
-  assert.match(page, /Syntax language; auto-selected from file extension\./);
-  assert.match(page, /\/api\/render-code\?documentId=/);
-  assert.match(page, /highlightAnnotations\(\);/);
-  assert.match(page, /isMessage \? 'Message' : 'File'/);
-  assert.match(page, /document-collapse-toggle/);
+  assert.match(css, /\.annotation-document \{ margin-bottom: 32px; border: 1px solid var\(--border-light\);/);
+  assert.match(js, /ANNOTATE_DATA\.themes/);
+  assert.match(js, /\.diff-viewer tr\[data-diff-path\]/);
+  assert.match(js, /Overall comment for this section/);
+  assert.match(js, /startDocument !== endDocument/);
+  assert.match(js, /documentId: range \? range\.documentId : documentId/);
+  assert.match(js, /annotationSource\.kind === 'message'/);
+  assert.match(js, /annotation-document--' \+ annotationSource\.kind/);
+  assert.match(js, /source-badge--' \+ annotationSource\.kind/);
+  assert.match(js, /className = 'language-select'/);
+  assert.match(js, /Syntax language; auto-selected from file extension\./);
+  assert.match(js, /\/api\/render-code\?documentId=/);
+  assert.match(js, /highlightAnnotations\(\);/);
+  assert.match(js, /isMessage \? 'Message' : 'File'/);
+  assert.match(js, /document-collapse-toggle/);
   assert.match(page, /id="sourceInfo" type="button" aria-expanded="false" aria-controls="sourceMenu"/);
   assert.match(page, /id="sourceMenu" aria-label="Review sources" hidden/);
-  assert.match(page, /scrollIntoView\(\{ behavior: 'smooth', block: 'start' \}\)/);
-  assert.match(page, /sourceNavigation\.contains\(event\.target\)/);
-  assert.match(page, /event\.key === 'Escape' && !sourceMenu\.hidden/);
-  assert.match(page, /singleDocument \? 'Overall comment' : 'Overall comment for this section'/);
-  assert.match(page, /btnFullReviewComment.*singleDocument \? 'none'/);
+  assert.match(js, /scrollIntoView\(\{ behavior: 'smooth', block: 'start' \}\)/);
+  assert.match(js, /sourceNavigation\.contains\(event\.target\)/);
+  assert.match(js, /event\.key === 'Escape' && !sourceMenu\.hidden/);
+  assert.match(js, /singleDocument \? 'Overall comment' : 'Overall comment for this section'/);
+  assert.match(js, /btnFullReviewComment.*singleDocument \? 'none'/);
   assert.match(page, /id="btnApprove">Approve without feedback<\/button>/);
   assert.match(page, /id="reviewEnded"[^>]*>.*Review session ended/s);
-  assert.match(page, /fetch\('\/api\/health'/);
-  assert.match(page, /document\.title = 'Review ended — Annotation Review'/);
+  assert.match(js, /fetch\('\/api\/health'/);
+  assert.match(js, /document\.title = 'Review ended — Annotation Review'/);
   assert.match(page, /class="diff-style-toggle" role="group" aria-label="Diff layout"/);
   assert.match(page, /id="diffUnified" type="button" aria-pressed="false"/);
   assert.match(page, /id="diffSideBySide" type="button" aria-pressed="true"/);
@@ -526,4 +535,27 @@ test("completes nested paths and quotes spaces", async () => {
     assert.deepEqual(applied.lines, ['first.md "nested/my file.md"']);
     assert.deepEqual(parseAnnotationPaths(applied.lines[0]), ["first.md", "nested/my file.md"]);
   } finally { rmSync(directory, { recursive: true, force: true }); }
+});
+
+test("served page contains no unreplaced data-injection token", async () => {
+  // Regression guard: server.ts replaces "__ANNOTATE_DATA__" with a single-occurrence
+  // string replace, so the template must hold the token exactly once (or it sticks
+  // as literal text and the UI falls back to empty data).
+  const Template = /__ANNOTATE_DATA__/g;
+  const html = readFileSync("form/annotate.html", "utf8");
+  assert.equal((html.match(Template) ?? []).length, 1);
+  const server = await startAnnotationServer({
+    documents: [document("one", "# One")],
+    htmlContent: html,
+    mode: "annotate",
+  });
+  try {
+    const page = await (await fetch(`${server.url}/`)).text();
+    assert.equal((page.match(Template) ?? []).length, 0);
+    assert.match(page, /window\.ANNOTATE_DATA = \(function\(\)/);
+    // The injected plan landed in the one surviving placeholder position (sessionToken is a fresh UUID).
+    assert.match(page, /JSON\.parse\('\{"sessionToken":"[0-9a-f-]{36}"/);
+  } finally {
+    server.stop();
+  }
 });

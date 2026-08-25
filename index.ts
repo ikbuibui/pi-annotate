@@ -271,7 +271,9 @@ function readAnnotateAssets() {
   return {
     "/assets/diff2html-ui.js": { content: readFileSync(require.resolve("diff2html/bundles/js/diff2html-ui-slim.min.js"), "utf-8"), contentType: "text/javascript; charset=utf-8" },
     "/assets/diff-viewer.js": { content: form("diff-viewer.js"), contentType: "text/javascript; charset=utf-8" },
+    "/assets/annotate.js": { content: form("annotate.js"), contentType: "text/javascript; charset=utf-8" },
     "/assets/diff-viewer.css": { content: form("diff-viewer.css"), contentType: "text/css; charset=utf-8" },
+    "/assets/annotate.css": { content: form("annotate.css"), contentType: "text/css; charset=utf-8" },
     "/assets/diff2html.css": { content: form("diff2html.css"), contentType: "text/css; charset=utf-8" },
   };
 }

@@ -209,7 +209,11 @@ pi-annotate/
 ├── server.ts              # Annotation HTTP server (API routes)
 ├── theme.ts               # User theme validation and discovery
 ├── form/
-│   └── annotate.html      # Annotation UI (pure HTML/CSS/JS, no build step)
+│   ├── annotate.html      # Annotation UI shell (markup + injected data bootstrap)
+│   ├── annotate.css       # Annotation UI styles
+│   ├── annotate.js        # Annotation UI application logic
+│   ├── diff-viewer.js/.css # Per-file diff rendering
+│   └── diff2html.css      # Vendored Diff2Html styles
 ├── package.json
 └── README.md
 ```
