@@ -28,8 +28,9 @@ export function handleReviewTerminalInput(
   gate: ReviewGate,
   data: string,
   onBlocked: () => void,
+  onForceClose?: () => void,
 ): { consume: true } | undefined {
-  if (!gate.isActive() || !matchesKey(data, "return")) return;
-  onBlocked();
-  return { consume: true };
+  if (!gate.isActive()) return;
+  if (matchesKey(data, "return")) { onBlocked(); return { consume: true }; }
+  if (onForceClose && matchesKey(data, "ctrl+c")) { onForceClose(); return { consume: true }; }
 }

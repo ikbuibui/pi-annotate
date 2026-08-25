@@ -44,16 +44,21 @@ test("blocks non-extension prompts only while review is open", () => {
   assert.deepEqual(gate.handleInput({ source: "interactive" }), { action: "continue" });
 });
 
-test("blocks only Return while review is open", () => {
+test("blocks Return and force-closes on Ctrl+C while review is open", () => {
   const gate = new ReviewGate();
   let notifications = 0;
-  const handle = (data: string) => handleReviewTerminalInput(gate, data, () => { notifications++; });
+  let forceCloses = 0;
+  const handle = (data: string) => handleReviewTerminalInput(gate, data, () => { notifications++; }, () => { forceCloses++; });
 
   assert.equal(handle("\r"), undefined);
+  assert.equal(handle("\x03"), undefined);
   gate.start();
+  assert.equal(handle("\x1b"), undefined);
   assert.equal(handle("x"), undefined);
   assert.deepEqual(handle("\r"), { consume: true });
+  assert.deepEqual(handle("\x03"), { consume: true });
   assert.equal(notifications, 1);
+  assert.equal(forceCloses, 1);
 });
 
 test("review decisions do not replay blocked prompts", () => {
@@ -361,6 +366,9 @@ test("loads the Diff2Html UI highlighter before mounting diffs", () => {
   assert.match(page, /singleDocument \? 'Overall comment' : 'Overall comment for this section'/);
   assert.match(page, /btnFullReviewComment.*singleDocument \? 'none'/);
   assert.match(page, /id="btnApprove">Approve without feedback<\/button>/);
+  assert.match(page, /id="reviewEnded"[^>]*>.*Review session ended/s);
+  assert.match(page, /fetch\('\/api\/health'/);
+  assert.match(page, /document\.title = 'Review ended — Annotation Review'/);
   assert.match(page, /class="diff-style-toggle" role="group" aria-label="Diff layout"/);
   assert.match(page, /id="diffUnified" type="button" aria-pressed="false"/);
   assert.match(page, /id="diffSideBySide" type="button" aria-pressed="true"/);

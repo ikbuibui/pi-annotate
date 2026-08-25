@@ -172,6 +172,12 @@ All annotations appear in the right sidebar panel with their source title. Every
 | `/` | Search messages |
 | `Esc` | Clear active search, or cancel |
 
+### Review open (terminal)
+
+| Key | Action |
+|-----|--------|
+| `Ctrl+C` | Force-close, discard unsent annotations, re-enable input; browser shows ended state |
+
 Marked messages stay marked while searching. Reviews use the displayed tree order, never mark order.
 
 ## Custom Browser Themes

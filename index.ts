@@ -303,6 +303,9 @@ async function openAnnotationServer(
   const unsubscribe = ctx.mode === "tui"
     ? ctx.ui.onTerminalInput((data) => handleReviewTerminalInput(reviewGate, data, () => {
       ctx.ui.notify("Finish or close the annotation review before sending another prompt.", "warning");
+    }, () => {
+      ctx.ui.notify("Annotation review force-closed. Any unsent browser annotations were discarded.", "warning");
+      server.resolveDecision({ action: "exit" });
     }))
     : () => {};
   try {
@@ -311,7 +314,7 @@ async function openAnnotationServer(
       [
         `Annotation review opened for: ${options.notificationTarget ?? options.documents.map((document) => document.title).join(", ")}`,
         "Terminal submission is disabled until review completes.",
-        "Send feedback, approve, or close the tab to continue.",
+        "Send feedback, approve, close the tab, or press Ctrl+C in the terminal to force-close.",
       ].join("\n"),
       "info",
     );

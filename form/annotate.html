@@ -915,6 +915,8 @@
       color: var(--text-secondary);
       font-size: 13px;
     }
+    #reviewEnded { display: none; position: fixed; inset: 0; transform: none; z-index: 800; margin: 0; border: 0; border-radius: 0; background: var(--bg-primary); align-items: center; justify-content: center; flex-direction: column; }
+    #reviewEnded.active { display: flex; }
 
     .loading-spinner {
       display: inline-block;
@@ -1081,6 +1083,13 @@
   </div>
 </div>
 
+<div class="status-msg" id="reviewEnded" role="alert">
+  <div class="msg-icon">⏹</div>
+  <h2>Review session ended</h2>
+  <p>Any unsent annotations were not submitted.</p>
+  <p>You can close this tab.</p>
+</div>
+
 <!-- Creation Popup -->
 <div class="floating-toolbar" id="floatingToolbar">
   <button class="toolbar-action-btn comment" id="tbComment" title="Add comment">
@@ -1162,6 +1171,7 @@
   let annotations = [];
   let planData = null;
   let nextAnnId = 0;
+  let healthTimer = null;
 
   /* ===== Utility Functions ===== */
   function escapeHtml(str) {
@@ -1758,6 +1768,25 @@
     return res.json();
   }
 
+  function showReviewEnded() {
+    if (healthTimer === null) return;
+    clearInterval(healthTimer);
+    healthTimer = null;
+    document.title = 'Review ended — Annotation Review';
+    document.getElementById('reviewEnded').classList.add('active');
+  }
+
+  function monitorReview() {
+    healthTimer = setInterval(async function() {
+      try {
+        const response = await fetch('/api/health');
+        if (!response.ok) showReviewEnded();
+      } catch {
+        showReviewEnded();
+      }
+    }, 1000);
+  }
+
   async function submitFeedback() {
     const body = {
       annotations: annotations.map(a => ({
@@ -1812,6 +1841,8 @@
   });
 
   function showSubmittedState(label) {
+    clearInterval(healthTimer);
+    healthTimer = null;
     const banner = document.getElementById('submittedBanner');
     banner.textContent = '✓ ' + label;
     banner.classList.add('active');
@@ -2096,6 +2127,7 @@
     updateButtons();
     window.AnnotationDiffViewer.install(function() { return planData.documents; });
     window.AnnotationDiffViewer.mount(planData.documents);
+    monitorReview();
 
     // Notify server when window is closed (reliable using fetch + keepalive)
     function notifyExit() {
