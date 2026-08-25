@@ -11,7 +11,7 @@ A visual annotation extension for pi-agent that opens an interactive annotation 
 ## Installation
 
 ```bash
-pi install npm:@jackice/pi-annotate
+pi install git:github.com/ikbuibui/pi-annotate
 ```
 
 Or install from a local path:
@@ -28,7 +28,7 @@ Restart pi or run `/reload` to load the extension.
 ## Features
 
 - **Message Annotation**: Mark one or more previous user or assistant messages from the session tree, collapse message sections as needed, or annotate the last assistant message directly
-- **File Annotation**: Open Markdown documents or code files in one ordered visual review; code languages are auto-detected, selectable from the file header, and fall back to `unknown`
+- **File Annotation**: Open Markdown documents or code files in one ordered visual review; code languages are auto-detected for syntax highlighting, selectable from the file header, and fall back to `unknown`
 - **Turn File Diffs**: Annotating an assistant response includes unified or side-by-side diffs for files changed with `edit` or `write` in that response's turn
 - **Annotation Types**: Comment, Suggestion, Issue, and Praise — each with distinct color coding
 - **Quick Labels**: One-click preset labels for common feedback, including needs clarification, missing details, and verify assumption
@@ -36,6 +36,7 @@ Restart pi or run `/reload` to load the extension.
 - **Text Feedback Popups**: Comment, Suggestion, and Issue each open a focused text-entry popup
 - **Three Comment Scopes**: Annotate selected text, add an overall comment for one source section, or add a full-review comment
 - **Feedback Delivery**: Annotations are sent back to the agent as a structured follow-up message
+- **Restructure Feedback**: Revise and reorganize collected feedback before sending it to the agent
 - **Approve Without Feedback**: When no annotations exist, approve documents directly
 - **Themes**: Select built-in or installed browser palettes; `Ctrl+Shift+L` cycles them
 - **Submit Confirmation**: Shows confirmation after submitting feedback or approving
