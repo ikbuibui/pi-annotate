@@ -369,6 +369,11 @@ test("loads the Diff2Html UI highlighter before mounting diffs", () => {
   assert.match(page, /id="tbPraise" title="Add praise"/);
   assert.match(js, /showCreationPopup\('praise', pendingRange\)/);
   assert.match(css, /\.toolbar-action-btn\.praise/);
+  assert.match(js, /<select class="ann-type-tag/);
+  assert.match(js, /isEditing \? 'data-edit-type' : 'data-type-id'/);
+  assert.match(js, /updateAnnotationType\(this\.dataset\.typeId, this\.value\)/);
+  assert.match(js, /updateAnnotation\(id, textarea\.value, typeSelect\.value\)/);
+  assert.match(css, /\.ann-type-tag:focus-visible/);
   assert.match(css, /\.annotation-document \{ margin-bottom: 32px; border: 1px solid var\(--border-light\);/);
   assert.match(css, /\.toolbar-left, \.theme-picker \{\s+display: flex;\s+align-items: center;/);
   assert.match(js, /ANNOTATE_DATA\.themes/);

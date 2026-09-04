@@ -33,16 +33,6 @@
     return 'ann-' + Date.now().toString(36) + '-' + (nextAnnId++).toString(36) + Math.random().toString(36).slice(2, 5);
   }
 
-  function getTypeIcon(type) {
-    var icons = {
-      comment: '<svg class="type-icon comment" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/></svg> ',
-      suggestion: '<svg class="type-icon suggestion" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg> ',
-      issue: '<svg class="type-icon issue" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/></svg> ',
-      praise: '<svg class="type-icon praise" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z"/></svg> '
-    };
-    return icons[type] || '';
-  }
-
   function formatTime(ts) {
     const d = new Date(ts);
     const pad = n => String(n).padStart(2, '0');
@@ -155,10 +145,19 @@
     annotations.sort((a, b) => (a.range ? a.range.startOffset : -1) - (b.range ? b.range.startOffset : -1));
   }
 
-  function updateAnnotation(id, newText) {
+  function updateAnnotation(id, newText, newType) {
     const ann = annotations.find(a => a.id === id);
     if (ann) {
       ann.text = newText.trim();
+      ann.type = newType;
+      updateAll();
+    }
+  }
+
+  function updateAnnotationType(id, newType) {
+    const ann = annotations.find(a => a.id === id);
+    if (ann) {
+      ann.type = newType;
       updateAll();
     }
   }
@@ -289,7 +288,11 @@
       const isEditing = editingId === ann.id;
       html += '<div class="ann-card" data-ann-id="' + ann.id + '">';
       html += '<div class="ann-card-header">';
-      html += '<span class="ann-type-tag ' + ann.type + '">' + getTypeIcon(ann.type) + ann.type + '</span>';
+      html += '<select class="ann-type-tag ' + ann.type + '" ' + (isEditing ? 'data-edit-type' : 'data-type-id') + '="' + ann.id + '" aria-label="Change annotation type">';
+      ['comment', 'suggestion', 'issue', 'praise'].forEach(function(type) {
+        html += '<option value="' + type + '"' + (type === ann.type ? ' selected' : '') + '>' + type[0].toUpperCase() + type.slice(1) + '</option>';
+      });
+      html += '</select>';
       html += '<div class="ann-card-actions">';
       if (!isEditing) {
         html += '<button class="ann-btn edit" data-action="edit" data-id="' + ann.id + '" title="Edit annotation"><svg class="ann-btn-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>';
@@ -330,10 +333,17 @@
       });
     });
 
+    container.querySelectorAll('[data-type-id]').forEach(function(select) {
+      select.addEventListener('change', function(e) {
+        e.stopPropagation();
+        updateAnnotationType(this.dataset.typeId, this.value);
+      });
+    });
+
     // Card click to scroll
     container.querySelectorAll('.ann-card').forEach(card => {
       card.addEventListener('click', function(e) {
-        if (e.target.closest('.ann-btn, .ann-edit-btn, .ann-edit-textarea')) return;
+        if (e.target.closest('.ann-btn, .ann-edit-btn, .ann-edit-textarea, .ann-type-tag')) return;
         const id = this.dataset.annId;
         if (id) scrollToAnnotation(id);
       });
@@ -356,8 +366,9 @@
 
   function saveEditing(id) {
     const textarea = document.querySelector('[data-edit-id="' + id + '"]');
-    if (textarea) {
-      updateAnnotation(id, textarea.value);
+    const typeSelect = document.querySelector('[data-edit-type="' + id + '"]');
+    if (textarea && typeSelect) {
+      updateAnnotation(id, textarea.value, typeSelect.value);
     }
     const container = document.getElementById('annList');
     container.dataset.editingId = '';

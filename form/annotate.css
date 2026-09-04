@@ -468,19 +468,23 @@
     }
 
     .ann-type-tag {
-      display: inline-flex;
-      align-items: center;
-      padding: 1px 8px;
-      border-radius: 10px;
-      font-size: 10px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.3px;
+      min-width: 104px;
+      height: 30px;
+      padding: 0 8px;
+      border: 1px solid var(--border-light);
+      border-radius: 6px;
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      font: 500 12px var(--font-sans);
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
     }
-    .ann-type-tag.comment { background: var(--type-comment-bg); color: var(--type-comment); border: 1px solid var(--type-comment-border); }
-    .ann-type-tag.suggestion { background: var(--type-suggestion-bg); color: var(--type-suggestion); border: 1px solid var(--type-suggestion-border); }
-    .ann-type-tag.issue { background: var(--type-issue-bg); color: var(--type-issue); border: 1px solid var(--type-issue-border); }
-    .ann-type-tag.praise { background: var(--type-praise-bg); color: var(--type-praise); border: 1px solid var(--type-praise-border); }
+    .ann-type-tag:hover { background: var(--bg-hover); border-color: var(--accent); }
+    .ann-type-tag:focus-visible { border-color: var(--accent); outline: 2px solid var(--type-comment-bg); outline-offset: 1px; }
+    .ann-type-tag.comment { color: var(--type-comment); }
+    .ann-type-tag.suggestion { color: var(--type-suggestion); }
+    .ann-type-tag.issue { color: var(--type-issue); }
+    .ann-type-tag.praise { color: var(--type-praise); }
 
     .ann-card-actions {
       display: flex;
@@ -701,16 +705,6 @@
       margin-bottom: 10px;
       color: var(--text-primary);
     }
-
-    .type-icon {
-      width: 14px;
-      height: 14px;
-      flex-shrink: 0;
-    }
-    .type-icon.comment { color: var(--type-comment); }
-    .type-icon.suggestion { color: var(--type-suggestion); }
-    .type-icon.issue { color: var(--type-issue); }
-    .type-icon.praise { color: var(--type-praise); }
 
     .popup-original-preview {
       font-size: 12px;
