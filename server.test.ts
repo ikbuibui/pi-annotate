@@ -340,6 +340,7 @@ test("serves independently rendered per-file diffs and assets", async () => {
 test("scrolls to annotations contained within a rendered block", () => {
   const js = readFileSync("form/annotate.js", "utf8");
   assert.match(js, /blockStart < ann\.range\.endOffset && blockEnd > ann\.range\.startOffset/);
+  assert.match(js, /if \(!ann\.range\) \{\s+section\.scrollIntoView\(\{ behavior: 'smooth', block: 'start' \}\)/);
 });
 
 test("loads the Diff2Html UI highlighter before mounting diffs", () => {

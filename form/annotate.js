@@ -219,9 +219,13 @@
 
   function scrollToAnnotation(id) {
     const ann = annotations.find(a => a.id === id);
-    if (!ann || !ann.range) return;
+    if (!ann) return;
     const section = documentSection(ann.documentId);
     if (!section) return;
+    if (!ann.range) {
+      section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
     if (ann.range.diff) {
       const diff = ann.range.diff;
       const lineKey = diff.side === 'original' ? 'diffOriginalLine' : 'diffCurrentLine';
