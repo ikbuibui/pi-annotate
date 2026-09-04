@@ -407,7 +407,7 @@
     popupDocumentId = range ? range.documentId : documentId;
     popupActive = true;
 
-    const labels = { comment: 'Comment', suggestion: 'Suggestion', issue: 'Issue' };
+    const labels = { comment: 'Comment', suggestion: 'Suggestion', issue: 'Issue', praise: 'Praise' };
     const label = labels[type] || 'Annotation';
     const original = document.getElementById('popupOriginal');
     original.style.display = popupRange ? 'block' : 'none';
@@ -495,6 +495,10 @@
 
   document.getElementById('tbIssue').addEventListener('click', function() {
     if (pendingRange) showCreationPopup('issue', pendingRange);
+  });
+
+  document.getElementById('tbPraise').addEventListener('click', function() {
+    if (pendingRange) showCreationPopup('praise', pendingRange);
   });
 
   document.getElementById('tbClose').addEventListener('click', function() {

@@ -646,6 +646,8 @@
     .toolbar-action-btn.suggestion:hover { background: var(--type-suggestion-bg); }
     .toolbar-action-btn.issue { color: var(--type-issue); }
     .toolbar-action-btn.issue:hover { background: var(--type-issue-bg); }
+    .toolbar-action-btn.praise { color: var(--type-praise); }
+    .toolbar-action-btn.praise:hover { background: var(--type-praise-bg); }
     .toolbar-action-btn.quicklabel { color: var(--warning); }
     .toolbar-action-btn.quicklabel:hover { background: rgba(230, 160, 64, 0.12); }
 

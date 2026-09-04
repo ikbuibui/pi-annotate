@@ -32,8 +32,8 @@ Restart pi or run `/reload` to load the extension.
 - **Turn File Diffs**: Annotating an assistant response includes unified or side-by-side diffs for files changed with `edit` or `write` in that response's turn
 - **Annotation Types**: Comment, Suggestion, Issue, and Praise — each with distinct color coding
 - **Quick Labels**: One-click preset labels for common feedback, including needs clarification, missing details, and verify assumption
-- **Floating Toolbar**: Select text to reveal Comment, Suggestion, Issue, Quick Label, and Close actions
-- **Text Feedback Popups**: Comment, Suggestion, and Issue each open a focused text-entry popup
+- **Floating Toolbar**: Select text to reveal Comment, Suggestion, Issue, Praise, Quick Label, and Close actions
+- **Text Feedback Popups**: Comment, Suggestion, Issue, and Praise each open a focused text-entry popup
 - **Three Comment Scopes**: Annotate selected text, add an overall comment for one source section, or add a full-review comment
 - **Feedback Delivery**: Annotations are sent back to the agent as a structured follow-up message
 - **Feedback Formats**: Choose Detailed Markdown, Compact Markdown, or Action list; create named templates with an exact message preview
@@ -57,7 +57,7 @@ Restart pi or run `/reload` to load the extension.
 1. Run `/annotate`, `/annotate <file> [file...]`, or `/annotate-last`
 2. Local server starts → annotation UI opens in the system browser
 3. Select text in the document → floating toolbar appears with annotation actions
-4. Add overall comments from the bottom action bar, or select text for Comment, Suggestion, Issue, or a Quick Label (including delete and praise)
+4. Add overall comments from the bottom action bar, or select text for Comment, Suggestion, Issue, Praise, or a Quick Label
 5. The review ends via:
    - **Send Feedback** → annotations sent back to agent as follow-up message
    - **Approve without feedback** → document approved, no feedback sent (available when no annotations exist)
@@ -124,6 +124,7 @@ Select any text to reveal a floating toolbar:
 | 💬 Comment | Opens text input | Type detailed feedback about the selected text |
 | 💡 Suggestion | Opens text input | Propose an improvement for the selected text |
 | ⓘ Issue | Opens text input | Describe a problem in the selected text |
+| ☆ Praise | Opens text input | Add positive feedback about the selected text |
 | ⚡ Quick Label | Opens preset picker | Add a preset annotation to the selected text |
 | ✕ Close | Dismisses toolbar | Discards the selected range for annotation |
 
