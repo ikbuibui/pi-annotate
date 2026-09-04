@@ -170,18 +170,18 @@
     }
 
     .md-viewer {
-      scrollbar-width: thin;
-      scrollbar-color: var(--border-light) transparent;
+      scrollbar-color: var(--border-light) var(--bg-secondary);
     }
     .md-viewer::-webkit-scrollbar {
-      width: 6px;
+      width: 12px;
     }
     .md-viewer::-webkit-scrollbar-track {
-      background: transparent;
+      background: var(--bg-secondary);
     }
     .md-viewer::-webkit-scrollbar-thumb {
       background: var(--border-light);
-      border-radius: 3px;
+      border: 2px solid var(--bg-secondary);
+      border-radius: 6px;
     }
     .md-viewer::-webkit-scrollbar-thumb:hover {
       background: var(--text-muted);
