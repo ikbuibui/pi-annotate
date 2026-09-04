@@ -234,7 +234,7 @@
     for (const block of blocks) {
       const blockStart = parseInt(block.dataset.offsetStart);
       const blockEnd = parseInt(block.dataset.offsetEnd);
-      if (blockStart >= ann.range.startOffset && blockStart < ann.range.endOffset) {
+      if (blockStart < ann.range.endOffset && blockEnd > ann.range.startOffset) {
         block.scrollIntoView({ behavior: 'smooth', block: 'center' });
         block.style.outline = '2px solid var(--accent)';
         setTimeout(() => { block.style.outline = ''; }, 2000);
