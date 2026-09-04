@@ -170,17 +170,17 @@
     }
 
     .md-viewer {
-      scrollbar-color: var(--border-light) var(--bg-secondary);
+      scrollbar-color: var(--border-light) var(--bg-primary);
     }
     .md-viewer::-webkit-scrollbar {
       width: 12px;
     }
     .md-viewer::-webkit-scrollbar-track {
-      background: var(--bg-secondary);
+      background: var(--bg-primary);
     }
     .md-viewer::-webkit-scrollbar-thumb {
       background: var(--border-light);
-      border: 2px solid var(--bg-secondary);
+      border: 2px solid var(--bg-primary);
       border-radius: 6px;
     }
     .md-viewer::-webkit-scrollbar-thumb:hover {
@@ -392,7 +392,7 @@
       width: var(--panel-width);
       min-width: var(--panel-width);
       background: var(--bg-secondary);
-      border-left: 1px solid var(--border);
+      border-left: 2px solid var(--border);
       display: flex;
       flex-direction: column;
       overflow: hidden;
