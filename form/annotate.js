@@ -520,7 +520,7 @@
   /* ===== Quick Label Popover ===== */
 
   var qlLabels = [
-    { id: 'delete', type: 'suggestion', text: 'Suggest removing this section' },
+    { id: 'delete', type: 'suggestion', text: 'Delete this section' },
     { id: 'praise', type: 'praise', text: 'Looks good' },
     { id: 'clarify', type: 'suggestion', text: 'Needs Clarification' },
     { id: 'missing', type: 'suggestion', text: 'Missing Details' },
