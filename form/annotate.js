@@ -1,4 +1,4 @@
-(function() {
+(function () {
   'use strict';
 
   /* ===== Configuration & State ===== */
@@ -36,8 +36,8 @@
   function formatTime(ts) {
     const d = new Date(ts);
     const pad = n => String(n).padStart(2, '0');
-    return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + ' ' +
-           pad(d.getHours()) + ':' + pad(d.getMinutes());
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' +
+      pad(d.getHours()) + ':' + pad(d.getMinutes());
   }
 
   /* ===== Text Selection & Annotation Creation ===== */
@@ -49,7 +49,7 @@
   }
 
   function annotationDocument(id) {
-    return planData?.documents?.find(function(document) { return document.id === id; });
+    return planData?.documents?.find(function (document) { return document.id === id; });
   }
 
   function documentSection(id) {
@@ -76,8 +76,10 @@
       const diff = window.AnnotationDiffViewer.resolveRange(range, startDocument.querySelector('.diff-viewer'));
       if (!diff) return;
       const rect = range.getBoundingClientRect();
-      pendingRange = { documentId, startOffset: 0, endOffset: 0, textPreview: sel.toString().trim(), diff: Object.assign(diff, { documentId }),
-        selRect: { top: rect.top, bottom: rect.bottom, left: rect.left, width: rect.width } };
+      pendingRange = {
+        documentId, startOffset: 0, endOffset: 0, textPreview: sel.toString().trim(), diff: Object.assign(diff, { documentId }),
+        selRect: { top: rect.top, bottom: rect.bottom, left: rect.left, width: rect.width }
+      };
       showFloatingToolbar(range);
       return;
     }
@@ -89,9 +91,11 @@
     let origEnd = origStart >= 0 ? origStart + selectedText.length : endOffset;
     if (origStart < 0) { origStart = startOffset; origEnd = endOffset; }
     const rect = range.getBoundingClientRect();
-    pendingRange = { documentId, startOffset: origStart, endOffset: origEnd,
+    pendingRange = {
+      documentId, startOffset: origStart, endOffset: origEnd,
       textPreview: selectedText.length > 80 ? selectedText.slice(0, 80) + '…' : selectedText,
-      selRect: { top: rect.top, bottom: rect.bottom, left: rect.left, width: rect.width } };
+      selRect: { top: rect.top, bottom: rect.bottom, left: rect.left, width: rect.width }
+    };
     showFloatingToolbar(range);
   }
 
@@ -228,14 +232,14 @@
     if (ann.range.diff) {
       const diff = ann.range.diff;
       const lineKey = diff.side === 'original' ? 'diffOriginalLine' : 'diffCurrentLine';
-      const row = Array.from(section.querySelectorAll('.diff-viewer tr[data-diff-path]')).find(function(candidate) {
+      const row = Array.from(section.querySelectorAll('.diff-viewer tr[data-diff-path]')).find(function (candidate) {
         const line = Number(candidate.dataset[lineKey]);
         return candidate.dataset.diffPath === diff.path && line >= diff.startLine && line <= diff.endLine;
       });
       if (!row) return;
       row.scrollIntoView({ behavior: 'smooth', block: 'center' });
       row.style.outline = '2px solid var(--accent)';
-      setTimeout(function() { row.style.outline = ''; }, 2000);
+      setTimeout(function () { row.style.outline = ''; }, 2000);
       return;
     }
     const blocks = section.querySelectorAll('.md-block');
@@ -289,7 +293,7 @@
       html += '<div class="ann-card" data-ann-id="' + ann.id + '">';
       html += '<div class="ann-card-header">';
       html += '<select class="ann-type-tag ' + ann.type + '" ' + (isEditing ? 'data-edit-type' : 'data-type-id') + '="' + ann.id + '" aria-label="Change annotation type">';
-      ['comment', 'suggestion', 'issue', 'praise'].forEach(function(type) {
+      ['comment', 'suggestion', 'issue', 'praise'].forEach(function (type) {
         html += '<option value="' + type + '"' + (type === ann.type ? ' selected' : '') + '>' + type[0].toUpperCase() + type.slice(1) + '</option>';
       });
       html += '</select>';
@@ -322,7 +326,7 @@
 
     // Re-bind event listeners for card actions
     container.querySelectorAll('[data-action]').forEach(btn => {
-      btn.addEventListener('click', function(e) {
+      btn.addEventListener('click', function (e) {
         e.stopPropagation();
         const action = this.dataset.action;
         const id = this.dataset.id;
@@ -333,8 +337,8 @@
       });
     });
 
-    container.querySelectorAll('[data-type-id]').forEach(function(select) {
-      select.addEventListener('change', function(e) {
+    container.querySelectorAll('[data-type-id]').forEach(function (select) {
+      select.addEventListener('change', function (e) {
         e.stopPropagation();
         updateAnnotationType(this.dataset.typeId, this.value);
       });
@@ -342,7 +346,7 @@
 
     // Card click to scroll
     container.querySelectorAll('.ann-card').forEach(card => {
-      card.addEventListener('click', function(e) {
+      card.addEventListener('click', function (e) {
         if (e.target.closest('.ann-btn, .ann-edit-btn, .ann-edit-textarea, .ann-type-tag')) return;
         const id = this.dataset.annId;
         if (id) scrollToAnnotation(id);
@@ -391,7 +395,7 @@
     confirmCallback = null;
   }
 
-  document.getElementById('confirmOk').addEventListener('click', function() {
+  document.getElementById('confirmOk').addEventListener('click', function () {
     if (confirmCallback) confirmCallback();
     hideConfirm();
   });
@@ -399,7 +403,7 @@
   document.getElementById('confirmCancel').addEventListener('click', hideConfirm);
 
   function confirmDelete(id) {
-    showConfirm('Delete Annotation', 'Are you sure you want to delete this annotation?', function() {
+    showConfirm('Delete Annotation', 'Are you sure you want to delete this annotation?', function () {
       deleteAnnotation(id);
     });
   }
@@ -474,7 +478,7 @@
   }
 
   // Text input enabling confirm
-  document.getElementById('annTextInput').addEventListener('input', function() {
+  document.getElementById('annTextInput').addEventListener('input', function () {
     document.getElementById('popupConfirm').disabled = this.value.trim().length === 0;
   });
 
@@ -483,7 +487,7 @@
   document.getElementById('popupCancel').addEventListener('click', hideCreationPopup);
 
   // Hide comment popup when clicking outside
-  document.addEventListener('mousedown', function(e) {
+  document.addEventListener('mousedown', function (e) {
     if (e.target.closest('#creationPopup') || e.target.closest('.floating-toolbar') || e.target.closest('.md-viewer')) return;
     if (document.getElementById('creationPopup').style.display === 'block') {
       hideCreationPopup();
@@ -492,27 +496,27 @@
 
   /* ===== Floating Toolbar Actions ===== */
 
-  document.getElementById('btnFullReviewComment').addEventListener('click', function() {
+  document.getElementById('btnFullReviewComment').addEventListener('click', function () {
     showCreationPopup('comment', null, null);
   });
 
-  document.getElementById('tbComment').addEventListener('click', function() {
+  document.getElementById('tbComment').addEventListener('click', function () {
     if (pendingRange) showCreationPopup('comment', pendingRange);
   });
 
-  document.getElementById('tbSuggestion').addEventListener('click', function() {
+  document.getElementById('tbSuggestion').addEventListener('click', function () {
     if (pendingRange) showCreationPopup('suggestion', pendingRange);
   });
 
-  document.getElementById('tbIssue').addEventListener('click', function() {
+  document.getElementById('tbIssue').addEventListener('click', function () {
     if (pendingRange) showCreationPopup('issue', pendingRange);
   });
 
-  document.getElementById('tbPraise').addEventListener('click', function() {
+  document.getElementById('tbPraise').addEventListener('click', function () {
     if (pendingRange) showCreationPopup('praise', pendingRange);
   });
 
-  document.getElementById('tbClose').addEventListener('click', function() {
+  document.getElementById('tbClose').addEventListener('click', function () {
     pendingRange = null;
     hideFloatingToolbar();
   });
@@ -533,7 +537,7 @@
     { id: 'structure', type: 'suggestion', text: 'Well-structured' }
   ];
 
-  document.getElementById('tbQuickLabel').addEventListener('click', function(e) {
+  document.getElementById('tbQuickLabel').addEventListener('click', function (e) {
     var popover = document.getElementById('qlPopover');
     if (popover.classList.contains('active')) {
       popover.classList.remove('active');
@@ -554,10 +558,10 @@
     popover.style.left = (btnRect.left - 4) + 'px';
   });
 
-  document.querySelectorAll('.ql-item').forEach(function(item) {
-    item.addEventListener('click', function() {
+  document.querySelectorAll('.ql-item').forEach(function (item) {
+    item.addEventListener('click', function () {
       var id = this.dataset.ql;
-      var found = qlLabels.find(function(l) { return l.id === id; });
+      var found = qlLabels.find(function (l) { return l.id === id; });
       if (pendingRange && found) {
         addAnnotation(found.type, found.text, pendingRange);
         pendingRange = null;
@@ -567,13 +571,13 @@
     });
   });
 
-  document.addEventListener('mousedown', function(e) {
+  document.addEventListener('mousedown', function (e) {
     if (e.target.closest('#qlPopover') || e.target.closest('#tbQuickLabel')) return;
     document.getElementById('qlPopover').classList.remove('active');
   });
 
   // Hide floating toolbar on outside click
-  document.addEventListener('mousedown', function(e) {
+  document.addEventListener('mousedown', function (e) {
     if (e.target.closest('.floating-toolbar')) return;
     if (document.getElementById('floatingToolbar').classList.contains('active')) {
       hideFloatingToolbar();
@@ -584,10 +588,10 @@
 
   let selectionTimeout = null;
 
-  document.getElementById('mdViewer').addEventListener('mouseup', function(e) {
+  document.getElementById('mdViewer').addEventListener('mouseup', function (e) {
     // Delay to let the browser finalize selection
     if (selectionTimeout) clearTimeout(selectionTimeout);
-    selectionTimeout = setTimeout(function() {
+    selectionTimeout = setTimeout(function () {
       if (popupActive) return;
       // Check if click was inside creation popup
       const popup = document.getElementById('creationPopup');
@@ -598,10 +602,10 @@
   });
 
   // Also listen for keyboard-based selection (Shift+Arrow)
-  document.addEventListener('keyup', function(e) {
+  document.addEventListener('keyup', function (e) {
     if (e.key === 'Shift' || e.key.startsWith('Arrow')) {
       if (selectionTimeout) clearTimeout(selectionTimeout);
-      selectionTimeout = setTimeout(function() {
+      selectionTimeout = setTimeout(function () {
         if (popupActive) return;
         const sel = window.getSelection();
         if (sel && !sel.isCollapsed && sel.toString().trim()) {
@@ -622,7 +626,7 @@
     if (!res.ok) {
       const text = await res.text();
       let msg = text;
-      try { msg = JSON.parse(text).error || text; } catch(e) {}
+      try { msg = JSON.parse(text).error || text; } catch (e) { }
       throw new Error('Request failed: ' + msg);
     }
     return res.json();
@@ -643,7 +647,7 @@
   }
 
   function monitorReview() {
-    healthTimer = setInterval(async function() {
+    healthTimer = setInterval(async function () {
       try {
         const response = await fetch('/api/health');
         if (!response.ok) showReviewEnded();
@@ -681,7 +685,7 @@
   /* ===== Feedback Formats ===== */
 
   function builtInFeedbackFormats() {
-    return (Array.isArray(ANNOTATE_DATA.feedbackFormats) ? ANNOTATE_DATA.feedbackFormats : []).filter(function(format) {
+    return (Array.isArray(ANNOTATE_DATA.feedbackFormats) ? ANNOTATE_DATA.feedbackFormats : []).filter(function (format) {
       return format && typeof format.id === 'string' && typeof format.name === 'string' && typeof format.template === 'string';
     });
   }
@@ -693,11 +697,11 @@
   function populateFeedbackFormats() {
     const select = document.getElementById('feedbackFormatSelect');
     select.replaceChildren();
-    [['Built in', builtInFeedbackFormats()], ['Your formats', customFeedbackFormats]].forEach(function(group) {
+    [['Built in', builtInFeedbackFormats()], ['Your formats', customFeedbackFormats]].forEach(function (group) {
       if (!group[1].length) return;
       const options = document.createElement('optgroup');
       options.label = group[0];
-      group[1].forEach(function(format) {
+      group[1].forEach(function (format) {
         const option = document.createElement('option');
         option.value = format.id;
         option.textContent = format.name;
@@ -706,7 +710,7 @@
       });
       select.appendChild(options);
     });
-    if (!allFeedbackFormats().some(function(format) { return format.id === feedbackFormatId; })) feedbackFormatId = 'detailed';
+    if (!allFeedbackFormats().some(function (format) { return format.id === feedbackFormatId; })) feedbackFormatId = 'detailed';
     select.value = feedbackFormatId;
   }
 
@@ -724,7 +728,7 @@
   function previewAnnotations() {
     if (annotations.length) return annotations;
     const source = planData && planData.documents && planData.documents[0];
-    const selectedText = source && source.markdown && source.markdown.split(/\r?\n/).find(function(line) { return line.trim(); });
+    const selectedText = source && source.markdown && source.markdown.split(/\r?\n/).find(function (line) { return line.trim(); });
     const previewText = selectedText ? selectedText.trim().slice(0, 80) : 'The system handles the request.';
     const previewStart = source && source.markdown ? Math.max(0, source.markdown.indexOf(previewText)) : 0;
     return [{
@@ -740,7 +744,7 @@
   function scheduleFormatPreview() {
     clearTimeout(formatPreviewTimer);
     const request = ++formatPreviewRequest;
-    formatPreviewTimer = setTimeout(async function() {
+    formatPreviewTimer = setTimeout(async function () {
       const preview = document.getElementById('formatPreview');
       preview.classList.remove('error');
       preview.textContent = 'Formatting…';
@@ -761,9 +765,9 @@
   }
 
   function openFormatDialog() {
-    const format = allFeedbackFormats().find(function(candidate) { return candidate.id === feedbackFormatId; }) || builtInFeedbackFormats()[0];
+    const format = allFeedbackFormats().find(function (candidate) { return candidate.id === feedbackFormatId; }) || builtInFeedbackFormats()[0];
     if (!format) return;
-    const custom = customFeedbackFormats.some(function(candidate) { return candidate.id === format.id; });
+    const custom = customFeedbackFormats.some(function (candidate) { return candidate.id === format.id; });
     editingFeedbackFormatId = custom ? format.id : null;
     document.getElementById('formatName').value = custom ? format.name : format.name + ' copy';
     document.getElementById('formatContextLines').value = format.contextLines || 0;
@@ -788,7 +792,7 @@
     if (!name || !template.trim()) return alert('A name and template are required.');
     if (!Number.isInteger(contextLines) || contextLines < 0 || contextLines > 100) return alert('Context lines must be between 0 and 100.');
     const id = editingFeedbackFormatId || 'custom:' + (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36));
-    const next = customFeedbackFormats.filter(function(format) { return format.id !== id; }).concat([{ id: id, name: name, template: template, contextLines: contextLines }]);
+    const next = customFeedbackFormats.filter(function (format) { return format.id !== id; }).concat([{ id: id, name: name, template: template, contextLines: contextLines }]);
     try {
       await saveFeedbackPreferences({ feedbackFormats: next, feedbackFormat: id });
       closeFormatDialog();
@@ -799,7 +803,7 @@
     if (!editingFeedbackFormatId || !window.confirm('Delete this saved feedback format?')) return;
     try {
       await saveFeedbackPreferences({
-        feedbackFormats: customFeedbackFormats.filter(function(format) { return format.id !== editingFeedbackFormatId; }),
+        feedbackFormats: customFeedbackFormats.filter(function (format) { return format.id !== editingFeedbackFormatId; }),
         feedbackFormat: 'detailed'
       });
       closeFormatDialog();
@@ -814,11 +818,11 @@
         customFeedbackFormats = Array.isArray(saved.feedbackFormats) ? saved.feedbackFormats : [];
         feedbackFormatId = typeof saved.feedbackFormat === 'string' ? saved.feedbackFormat : 'detailed';
       }
-    } catch {}
+    } catch { }
     populateFeedbackFormats();
   }
 
-  document.getElementById('feedbackFormatSelect').addEventListener('change', async function() {
+  document.getElementById('feedbackFormatSelect').addEventListener('change', async function () {
     const previous = feedbackFormatId;
     feedbackFormatId = this.value;
     try { await saveFeedbackPreferences({ feedbackFormat: feedbackFormatId }); }
@@ -830,16 +834,16 @@
   document.getElementById('formatCancel').addEventListener('click', closeFormatDialog);
   document.getElementById('formatSave').addEventListener('click', saveFormatDialog);
   document.getElementById('formatDelete').addEventListener('click', deleteFormatDialog);
-  document.getElementById('formatOverlay').addEventListener('mousedown', function(event) {
+  document.getElementById('formatOverlay').addEventListener('mousedown', function (event) {
     if (event.target === this) closeFormatDialog();
   });
-  document.addEventListener('keydown', function(event) {
+  document.addEventListener('keydown', function (event) {
     if (event.key === 'Escape' && document.getElementById('formatOverlay').classList.contains('active')) closeFormatDialog();
   });
 
   /* ===== Bottom Toolbar Actions ===== */
 
-  document.getElementById('btnFeedback').addEventListener('click', async function() {
+  document.getElementById('btnFeedback').addEventListener('click', async function () {
     if (annotations.length === 0) return;
     this.disabled = true;
     this.textContent = 'Submitting...';
@@ -853,7 +857,7 @@
     }
   });
 
-  document.getElementById('btnApprove').addEventListener('click', async function() {
+  document.getElementById('btnApprove').addEventListener('click', async function () {
     this.disabled = true;
     this.textContent = 'Approving...';
     try {
@@ -879,9 +883,9 @@
     document.getElementById('btnApprove').textContent = 'Approved';
 
     // Notify the server, then ask the browser to close this tab.
-    setTimeout(function() {
-      fetch('/api/exit', { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: '{}' }).catch(function(){});
-      try { window.close(); } catch {}
+    setTimeout(function () {
+      fetch('/api/exit', { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: '{}' }).catch(function () { });
+      try { window.close(); } catch { }
     }, 800);
   }
 
@@ -899,7 +903,7 @@
     return _tooltipMeasure.offsetHeight + 4;  // gap between block and tooltip
   }
   // Remove the measurement element when the page unloads
-  window.addEventListener('pagehide', function() {
+  window.addEventListener('pagehide', function () {
     if (_tooltipMeasure && _tooltipMeasure.parentNode) {
       _tooltipMeasure.parentNode.removeChild(_tooltipMeasure);
     }
@@ -908,7 +912,7 @@
 
   var _tooltipHeightCached = 0;
   var _hoveredBlock = null;
-  document.addEventListener('mouseover', function(e) {
+  document.addEventListener('mouseover', function (e) {
     var block = e.target.closest('.md-block[data-tooltip]');
     if (block) {
       if (block === _hoveredBlock) return;  // Skip recalculation within the same block
@@ -918,7 +922,7 @@
       block.classList.toggle('tooltip-below', rect.top < _tooltipHeightCached);
     }
   });
-  document.addEventListener('mouseout', function(e) {
+  document.addEventListener('mouseout', function (e) {
     // Match '.md-block' so the class can still be removed if
     // highlightAnnotations() removes data-tooltip.
     var block = e.target.closest('.md-block');
@@ -931,7 +935,7 @@
     }
   });
   // Recalculate the position when scrolling during hover
-  document.addEventListener('scroll', function() {
+  document.addEventListener('scroll', function () {
     if (_hoveredBlock && _hoveredBlock.hasAttribute('data-tooltip')) {
       var rect = _hoveredBlock.getBoundingClientRect();
       _hoveredBlock.classList.toggle('tooltip-below', rect.top < _tooltipHeightCached);
@@ -959,7 +963,7 @@
     }
     function renderSourceMenu() {
       sourceMenu.replaceChildren();
-      planData.documents.forEach(function(annotationSource) {
+      planData.documents.forEach(function (annotationSource) {
         const item = document.createElement('button');
         const badge = document.createElement('span');
         const title = document.createElement('span');
@@ -970,25 +974,25 @@
         title.className = 'source-menu-title';
         title.textContent = annotationSource.title;
         item.append(badge, title);
-        item.addEventListener('click', function() {
+        item.addEventListener('click', function () {
           closeSourceMenu(true);
           annotationSource.element.scrollIntoView({ behavior: 'smooth', block: 'start' });
           annotationSource.element.classList.add('is-source-target');
-          window.setTimeout(function() { annotationSource.element.classList.remove('is-source-target'); }, 1200);
+          window.setTimeout(function () { annotationSource.element.classList.remove('is-source-target'); }, 1200);
         });
         sourceMenu.appendChild(item);
       });
     }
-    sourceEl.addEventListener('click', function() {
+    sourceEl.addEventListener('click', function () {
       const open = sourceMenu.hidden;
       sourceMenu.hidden = !open;
       sourceEl.setAttribute('aria-expanded', String(open));
       if (open) sourceMenu.querySelector('button')?.focus();
     });
-    document.addEventListener('click', function(event) {
+    document.addEventListener('click', function (event) {
       if (!sourceNavigation.contains(event.target)) closeSourceMenu(false);
     });
-    document.addEventListener('keydown', function(event) {
+    document.addEventListener('keydown', function (event) {
       if (event.key === 'Escape' && !sourceMenu.hidden) {
         event.preventDefault();
         closeSourceMenu(true);
@@ -1003,12 +1007,12 @@
     // Theme selector: built-ins plus validated user palettes from the server.
     (function initTheme() {
       var customThemes = new Map((Array.isArray(ANNOTATE_DATA.themes) ? ANNOTATE_DATA.themes : [])
-        .filter(function(theme) { return theme && typeof theme.name === 'string' && theme.colors && typeof theme.colors === 'object'; })
-        .map(function(theme) { return [theme.name, theme.colors]; }));
+        .filter(function (theme) { return theme && typeof theme.name === 'string' && theme.colors && typeof theme.colors === 'object'; })
+        .map(function (theme) { return [theme.name, theme.colors]; }));
       var names = ['dark', 'light'].concat(Array.from(customThemes.keys()));
       var colorKeys = ['bg-primary', 'bg-secondary', 'bg-tertiary', 'bg-hover', 'text-primary', 'text-secondary', 'text-muted', 'border', 'border-light', 'accent', 'accent-hover', 'success', 'danger', 'warning', 'type-comment', 'type-comment-bg', 'type-comment-border', 'type-suggestion', 'type-suggestion-bg', 'type-suggestion-border', 'type-issue', 'type-issue-bg', 'type-issue-border', 'type-praise', 'type-praise-bg', 'type-praise-border'];
       var select = document.getElementById('themeSelect');
-      names.forEach(function(name) {
+      names.forEach(function (name) {
         var option = document.createElement('option');
         option.value = name;
         option.textContent = name;
@@ -1018,16 +1022,16 @@
       function applyTheme(name) {
         if (names.indexOf(name) < 0) name = 'dark';
         var root = document.documentElement;
-        colorKeys.forEach(function(key) { root.style.removeProperty('--' + key); });
+        colorKeys.forEach(function (key) { root.style.removeProperty('--' + key); });
         root.classList.toggle('light-mode', name === 'light');
         var colors = customThemes.get(name);
-        if (colors) Object.keys(colors).forEach(function(key) { root.style.setProperty('--' + key, colors[key]); });
+        if (colors) Object.keys(colors).forEach(function (key) { root.style.setProperty('--' + key, colors[key]); });
         select.value = name;
         localStorage.setItem('pi-annotate-theme', name);
       }
 
       applyTheme(localStorage.getItem('pi-annotate-theme') || 'dark');
-      select.addEventListener('change', function() { applyTheme(select.value); });
+      select.addEventListener('change', function () { applyTheme(select.value); });
     })();
 
     // Approve button: disabled when annotations exist
@@ -1038,7 +1042,7 @@
     }
     // Patch updateAll to call updateApproveButton
     var _origUpdateAll = updateAll;
-    updateAll = function() {
+    updateAll = function () {
       _origUpdateAll();
       updateApproveButton();
     };
@@ -1072,8 +1076,12 @@
         '3. Third item\n\n' +
         'Use the **Send Feedback** button at the bottom to submit your annotations to the server. ' +
         'Or use **Exit** to close without submitting.';
-      planData = { documents: [{ id: 'demo', kind: 'file', title: '(Demo Mode)', sourceInfo: '(Demo Mode)', markdown: demoPlan,
-        html: '<pre class="md-block" data-offset-start="0" data-offset-end="' + demoPlan.length + '"><code>' + escapeHtml(demoPlan) + '</code></pre>', hasChanges: false }] };
+      planData = {
+        documents: [{
+          id: 'demo', kind: 'file', title: '(Demo Mode)', sourceInfo: '(Demo Mode)', markdown: demoPlan,
+          html: '<pre class="md-block" data-offset-start="0" data-offset-end="' + demoPlan.length + '"><code>' + escapeHtml(demoPlan) + '</code></pre>', hasChanges: false
+        }]
+      };
     }
 
     await initFeedbackFormats();
@@ -1084,7 +1092,7 @@
     documentsDiv.style.display = 'block';
     const singleDocument = planData.documents.length === 1;
     document.getElementById('btnFullReviewComment').style.display = singleDocument ? 'none' : '';
-    planData.documents.forEach(function(annotationSource) {
+    planData.documents.forEach(function (annotationSource) {
       const section = document.createElement('section');
       const isMessage = annotationSource.kind === 'message';
       section.className = 'annotation-document annotation-document--' + annotationSource.kind;
@@ -1100,14 +1108,14 @@
         languageSelect.className = 'language-select';
         languageSelect.setAttribute('aria-label', 'Syntax language for ' + annotationSource.title);
         languageSelect.title = 'Syntax language; auto-selected from file extension.';
-        (planData.languages || ['unknown']).forEach(function(language) {
+        (planData.languages || ['unknown']).forEach(function (language) {
           const option = document.createElement('option');
           option.value = language;
           option.textContent = language;
           option.selected = language === annotationSource.language;
           languageSelect.appendChild(option);
         });
-        languageSelect.addEventListener('change', async function() {
+        languageSelect.addEventListener('change', async function () {
           const previousLanguage = annotationSource.language;
           languageSelect.disabled = true;
           try {
@@ -1125,9 +1133,9 @@
         });
         section.querySelector('.document-title').appendChild(languageSelect);
       }
-      section.querySelector('.btn-overall-comment').addEventListener('click', function() { showCreationPopup('comment', null, annotationSource.id); });
+      section.querySelector('.btn-overall-comment').addEventListener('click', function () { showCreationPopup('comment', null, annotationSource.id); });
       const collapseToggle = section.querySelector('.document-collapse-toggle');
-      if (collapseToggle) collapseToggle.addEventListener('click', function() {
+      if (collapseToggle) collapseToggle.addEventListener('click', function () {
         const body = section.querySelector('.document-body');
         body.hidden = !body.hidden;
         collapseToggle.setAttribute('aria-expanded', String(!body.hidden));
@@ -1147,7 +1155,7 @@
 
     updateBadge();
     updateButtons();
-    window.AnnotationDiffViewer.install(function() { return planData.documents; });
+    window.AnnotationDiffViewer.install(function () { return planData.documents; });
     window.AnnotationDiffViewer.mount(planData.documents);
     monitorReview();
 
@@ -1155,7 +1163,7 @@
     function notifyExit() {
       try {
         fetch('/api/exit', { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: '{}' });
-      } catch {}
+      } catch { }
     }
     window.addEventListener('beforeunload', notifyExit);
     window.addEventListener('pagehide', notifyExit);

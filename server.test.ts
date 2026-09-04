@@ -69,7 +69,7 @@ test("review decisions do not replay blocked prompts", () => {
   ] as const) {
     const sent: string[] = [];
     const pi = { sendUserMessage: (content: string) => sent.push(content) };
-    const ctx = { ui: { notify: () => {} } };
+    const ctx = { ui: { notify: () => { } } };
 
     handleAnnotationDecision(pi as never, ctx as never, decision, [{ id: "response", title: "response", sourceInfo: "response" }]);
     assert.deepEqual(sent, expected);
@@ -79,7 +79,7 @@ test("review decisions do not replay blocked prompts", () => {
 test("sends one grouped follow-up for a multi-document review", () => {
   const sent: string[] = [];
   const pi = { sendUserMessage: (content: string) => sent.push(content) };
-  handleAnnotationDecision(pi as never, { ui: { notify: () => {} } } as never, {
+  handleAnnotationDecision(pi as never, { ui: { notify: () => { } } } as never, {
     action: "feedback",
     annotations: [
       { id: "second", type: "issue", scope: "selection", documentId: "second", text: "Fix this", originalText: "bad", range: { startOffset: 0, endOffset: 3, textPreview: "bad" }, createdAt: 0 },
@@ -228,18 +228,26 @@ test("persists diff preferences across review servers", async () => {
 });
 
 test("builds an annotation tree from messages only", () => {
-  const candidates = getAnnotationCandidates([{ entry: {
-    id: "root", parentId: null, type: "message", message: { role: "user", content: "First\nprompt" },
-  }, children: [{ entry: {
-    id: "settings", parentId: "root", type: "custom",
-  }, children: [{ entry: {
-    id: "answer", parentId: "settings", type: "message", message: { role: "assistant", content: [{ type: "text", text: "First answer" }] },
-  }, children: [
-    { entry: { id: "main", parentId: "answer", type: "message", message: { role: "user", content: "Main branch" } }, label: "chosen", children: [
-      { entry: { id: "leaf", parentId: "main", type: "message", message: { role: "toolResult", content: "ignored" } }, children: [] },
-    ] },
-    { entry: { id: "other", parentId: "answer", type: "message", message: { role: "user", content: "Alternate branch" } }, children: [] },
-  ] }] }] }], "leaf");
+  const candidates = getAnnotationCandidates([{
+    entry: {
+      id: "root", parentId: null, type: "message", message: { role: "user", content: "First\nprompt" },
+    }, children: [{
+      entry: {
+        id: "settings", parentId: "root", type: "custom",
+      }, children: [{
+        entry: {
+          id: "answer", parentId: "settings", type: "message", message: { role: "assistant", content: [{ type: "text", text: "First answer" }] },
+        }, children: [
+          {
+            entry: { id: "main", parentId: "answer", type: "message", message: { role: "user", content: "Main branch" } }, label: "chosen", children: [
+              { entry: { id: "leaf", parentId: "main", type: "message", message: { role: "toolResult", content: "ignored" } }, children: [] },
+            ]
+          },
+          { entry: { id: "other", parentId: "answer", type: "message", message: { role: "user", content: "Alternate branch" } }, children: [] },
+        ]
+      }]
+    }]
+  }], "leaf");
 
   assert.deepEqual(candidates.map(({ id, prefix, active, label }) => ({ id, prefix, active, label })), [
     { id: "root", prefix: "", active: true, label: undefined },
@@ -536,11 +544,11 @@ test("allows feedback format customization without changing annotation delivery"
   assert.equal(formatter([annotation], [{ id: "source", title: "Source", sourceInfo: "src/app.ts" }]), expected);
 
   const sent: string[] = [];
-  handleAnnotationDecision({ sendUserMessage: (content: string) => sent.push(content) } as never, { ui: { notify: () => {} } } as never, { action: "feedback", annotations: [annotation] }, [{ id: "source", title: "Source", sourceInfo: "src/app.ts" }], formatter);
+  handleAnnotationDecision({ sendUserMessage: (content: string) => sent.push(content) } as never, { ui: { notify: () => { } } } as never, { action: "feedback", annotations: [annotation] }, [{ id: "source", title: "Source", sourceInfo: "src/app.ts" }], formatter);
   assert.equal(sent[0], expected);
 
   const jsonFormatter: FeedbackFormatter = (annotations, sources) => JSON.stringify({ annotations, sources });
-  handleAnnotationDecision({ sendUserMessage: (content: string) => sent.push(content) } as never, { ui: { notify: () => {} } } as never, { action: "feedback", annotations: [annotation] }, [{ id: "source", title: "Source", sourceInfo: "src/app.ts" }], jsonFormatter);
+  handleAnnotationDecision({ sendUserMessage: (content: string) => sent.push(content) } as never, { ui: { notify: () => { } } } as never, { action: "feedback", annotations: [annotation] }, [{ id: "source", title: "Source", sourceInfo: "src/app.ts" }], jsonFormatter);
   assert.deepEqual(JSON.parse(sent[1]), { annotations: [annotation], sources: [{ id: "source", title: "Source", sourceInfo: "src/app.ts" }] });
 });
 
@@ -559,7 +567,7 @@ test("empty annotation tree can open a file-only review", () => {
   const theme = { fg: (_: string, text: string) => text, bg: (_: string, text: string) => text, bold: (text: string) => text };
   const keys = { matches: () => false };
   let opened: AnnotationTreeSelection | undefined;
-  const selector = new AnnotationTreeSelector([], theme, keys as never, 5, (selected) => { opened = selected; }, () => {});
+  const selector = new AnnotationTreeSelector([], theme, keys as never, 5, (selected) => { opened = selected; }, () => { });
   selector.handleInput("f");
   assert.deepEqual(opened, { candidates: [], addFiles: true });
 });
@@ -572,7 +580,7 @@ test("tree marks survive filtering and open in tree order", () => {
   const theme = { fg: (_: string, text: string) => text, bg: (_: string, text: string) => text, bold: (text: string) => text };
   const keys = { matches: (data: string, binding: string) => ({ "tui.select.up": data === "up", "tui.select.down": data === "down", "tui.select.confirm": data === "enter", "tui.select.cancel": data === "esc", "tui.editor.deleteCharBackward": data === "backspace" }[binding] ?? false) };
   let opened: AnnotationTreeSelection | undefined;
-  const selector = new AnnotationTreeSelector(candidates, theme, keys as never, 5, (selected) => { opened = selected; }, () => {});
+  const selector = new AnnotationTreeSelector(candidates, theme, keys as never, 5, (selected) => { opened = selected; }, () => { });
   selector.handleInput(" "); // mark focused second
   selector.handleInput("up");
   selector.handleInput(" "); // mark first
@@ -582,17 +590,17 @@ test("tree marks survive filtering and open in tree order", () => {
   selector.handleInput("enter");
   assert.deepEqual(opened, { candidates: [candidates[0], candidates[1]], addFiles: false });
 
-  const searchSelector = new AnnotationTreeSelector(candidates, theme, keys as never, 5, (selected) => { opened = selected; }, () => {});
+  const searchSelector = new AnnotationTreeSelector(candidates, theme, keys as never, 5, (selected) => { opened = selected; }, () => { });
   searchSelector.handleInput("/");
   searchSelector.handleInput("first");
   searchSelector.handleInput("enter");
   assert.deepEqual(opened, { candidates: [candidates[0]], addFiles: false });
 
-  const fileSelector = new AnnotationTreeSelector(candidates, theme, keys as never, 5, (selected) => { opened = selected; }, () => {});
+  const fileSelector = new AnnotationTreeSelector(candidates, theme, keys as never, 5, (selected) => { opened = selected; }, () => { });
   fileSelector.handleInput("f");
   assert.deepEqual(opened, { candidates: [], addFiles: true });
 
-  const markedFileSelector = new AnnotationTreeSelector(candidates, theme, keys as never, 5, (selected) => { opened = selected; }, () => {});
+  const markedFileSelector = new AnnotationTreeSelector(candidates, theme, keys as never, 5, (selected) => { opened = selected; }, () => { });
   markedFileSelector.handleInput(" ");
   markedFileSelector.handleInput("f");
   assert.deepEqual(opened, { candidates: [candidates[1]], addFiles: true });

@@ -136,7 +136,7 @@ function defaultFormatItem({ annotation, target }: FeedbackItemContext): string 
   const tag = annotation.type === "comment" ? "Comment" : annotation.type === "suggestion" ? "Suggestion" : annotation.type === "issue" ? "Issue" : "Praise";
   const location = annotation.scope === "overall" ? `> Applies to: ${target}`
     : annotation.range?.diff ? `> ${annotation.range.diff.path}:${annotation.range.diff.startLine}${annotation.range.diff.endLine !== annotation.range.diff.startLine ? `-${annotation.range.diff.endLine}` : ""} (${annotation.range.diff.side})`
-    : `> Original text: "${annotation.originalText || "(none)"}"`;
+      : `> Original text: "${annotation.originalText || "(none)"}"`;
   return `- **${annotation.type}**: ${tag}\n  ${location}\n  ${annotation.text}`;
 }
 
@@ -214,10 +214,10 @@ function contextFor(annotation: Annotation, source: AnnotationSource | undefined
 function annotationValues(annotation: Annotation, source: AnnotationSource | undefined, contextLines: number): Record<string, string> {
   const target = annotation.documentId === null ? "Full review"
     : annotation.scope === "overall" ? `Overall comment for ${source?.title ?? "source"}`
-    : source?.title ?? "Source section";
+      : source?.title ?? "Source section";
   const location = annotation.scope === "overall" ? `Applies to: ${target}`
     : annotation.range?.diff ? `${annotation.range.diff.path}:${annotation.range.diff.startLine}${annotation.range.diff.endLine !== annotation.range.diff.startLine ? `-${annotation.range.diff.endLine}` : ""} (${annotation.range.diff.side})`
-    : `Original text: "${annotation.originalText || "(none)"}"`;
+      : `Original text: "${annotation.originalText || "(none)"}"`;
   return {
     id: annotation.id,
     type: annotation.type,

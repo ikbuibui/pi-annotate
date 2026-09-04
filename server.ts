@@ -337,12 +337,14 @@ export async function startAnnotationServer(
           sendJson(res, 400, { ok: false, error: "Unknown feedback format" });
           return;
         }
-        sendJson(res, 200, { ok: true, ...savePreferences({
-          ...(diffStyle === undefined ? {} : { diffStyle }),
-          ...(ignoreWhitespace === undefined ? {} : { ignoreWhitespace }),
-          feedbackFormat: selected,
-          feedbackFormats: nextFormats,
-        }, preferencePath) });
+        sendJson(res, 200, {
+          ok: true, ...savePreferences({
+            ...(diffStyle === undefined ? {} : { diffStyle }),
+            ...(ignoreWhitespace === undefined ? {} : { ignoreWhitespace }),
+            feedbackFormat: selected,
+            feedbackFormats: nextFormats,
+          }, preferencePath)
+        });
         return;
       }
 

@@ -139,7 +139,7 @@ export class AnnotationTreeSelector {
     if (candidates.length || addFiles) this.onSelect({ candidates, addFiles });
   }
 
-  invalidate(): void {}
+  invalidate(): void { }
 
   render(width: number): string[] {
     const candidates = this.filtered();
@@ -309,7 +309,7 @@ async function openAnnotationServer(
       ctx.ui.notify("Annotation review force-closed. Any unsent browser annotations were discarded.", "warning");
       server.resolveDecision({ action: "exit" });
     }))
-    : () => {};
+    : () => { };
   try {
     await openUrl(pi, server.url);
     ctx.ui.notify(
@@ -487,7 +487,7 @@ export default function (pi: ExtensionAPI) {
             changes: candidate.role === "assistant" ? turnChangesFor(ctx, candidate.id) : [],
           }));
           if (selection.addFiles) {
-            for (;;) {
+            for (; ;) {
               const paths = await promptAnnotationFiles(ctx);
               if (paths === null) return;
               try {

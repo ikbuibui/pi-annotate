@@ -1,175 +1,207 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Annotation Review</title>
-  <link rel="stylesheet" href="/assets/diff2html.css">
-  <link rel="stylesheet" href="/assets/diff-viewer.css">
-  <link rel="stylesheet" href="/assets/annotate.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Annotation Review</title>
+    <link rel="stylesheet" href="/assets/diff2html.css">
+    <link rel="stylesheet" href="/assets/diff-viewer.css">
+    <link rel="stylesheet" href="/assets/annotate.css">
 </head>
+
 <body>
-<div id="app">
-  <!-- Status Bar -->
-  <div class="status-bar">
-    <div class="status-bar-left">
-      <div class="source-navigation" id="sourceNavigation">
-        <button class="source-info" id="sourceInfo" type="button" aria-expanded="false" aria-controls="sourceMenu">Loading...</button>
-        <div class="source-popover" id="sourceMenu" aria-label="Review sources" hidden></div>
-      </div>
+    <div id="app">
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <div class="status-bar-left">
+                <div class="source-navigation" id="sourceNavigation">
+                    <button class="source-info" id="sourceInfo" type="button" aria-expanded="false"
+                        aria-controls="sourceMenu">Loading...</button>
+                    <div class="source-popover" id="sourceMenu" aria-label="Review sources" hidden></div>
+                </div>
+            </div>
+            <div class="status-bar-right">
+                <span class="gate-tag" id="gateTag" style="display:none;">⏳ Gate mode</span>
+                <span id="diffControls">
+                    <span class="diff-style-toggle" role="group" aria-label="Diff layout">
+                        <button id="diffUnified" type="button" aria-pressed="false">Unified</button>
+                        <button id="diffSideBySide" type="button" aria-pressed="true">Side by side</button>
+                    </span>
+                    <label><input id="diffIgnoreWhitespace" type="checkbox" checked> Ignore leading/trailing
+                        whitespace</label>
+                </span>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="md-viewer" id="mdViewer">
+                <div id="loadingState"
+                    style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:60vh;">
+                    <div class="loading-spinner"></div>
+                    <p style="color:var(--text-muted);">Loading content...</p>
+                </div>
+                <div id="documents" style="display:none;"></div>
+                <div id="errorState"
+                    style="display:none;flex-direction:column;align-items:center;justify-content:center;height:60vh;">
+                    <div class="msg-icon" style="font-size:36px;margin-bottom:12px;">⚠️</div>
+                    <p style="color:var(--text-secondary);font-size:14px;">Failed to load content</p>
+                    <p id="errorDetail" style="color:var(--text-muted);font-size:12px;"></p>
+                </div>
+            </div>
+
+            <!-- Annotation Panel -->
+            <div class="annotation-panel" id="annPanel">
+                <div class="panel-header"><span>Annotations</span><span class="annotation-badge" id="annBadge"><span
+                            class="count" id="annCount">0</span> annotations</span></div>
+                <div class="panel-body" id="annList"></div>
+            </div>
+        </div>
+
+        <!-- Bottom Toolbar -->
+        <div class="toolbar">
+            <div class="toolbar-left">
+                <label class="theme-picker">Theme<select class="theme-select" id="themeSelect"></select></label>
+                <label class="feedback-format-picker">Feedback<select class="theme-select" id="feedbackFormatSelect"
+                        aria-label="Feedback format"></select></label>
+                <button class="btn-toolbar btn-format" id="btnFeedbackFormats" type="button">Formats…</button>
+            </div>
+            <div class="toolbar-right">
+                <button class="btn-toolbar btn-overall-comment" id="btnFullReviewComment">Full review comment</button>
+                <button class="btn-toolbar btn-feedback" id="btnFeedback" disabled>Send Feedback</button>
+                <button class="btn-toolbar btn-approve" id="btnApprove">Approve without feedback</button>
+            </div>
+        </div>
     </div>
-    <div class="status-bar-right">
-      <span class="gate-tag" id="gateTag" style="display:none;">⏳ Gate mode</span>
-      <span id="diffControls">
-        <span class="diff-style-toggle" role="group" aria-label="Diff layout">
-          <button id="diffUnified" type="button" aria-pressed="false">Unified</button>
-          <button id="diffSideBySide" type="button" aria-pressed="true">Side by side</button>
-        </span>
-        <label><input id="diffIgnoreWhitespace" type="checkbox" checked> Ignore leading/trailing whitespace</label>
-      </span>
-    </div>
-  </div>
 
-  <!-- Main Content -->
-  <div class="main-content">
-    <div class="md-viewer" id="mdViewer">
-      <div id="loadingState" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:60vh;">
-        <div class="loading-spinner"></div>
-        <p style="color:var(--text-muted);">Loading content...</p>
-      </div>
-      <div id="documents" style="display:none;"></div>
-      <div id="errorState" style="display:none;flex-direction:column;align-items:center;justify-content:center;height:60vh;">
-        <div class="msg-icon" style="font-size:36px;margin-bottom:12px;">⚠️</div>
-        <p style="color:var(--text-secondary);font-size:14px;">Failed to load content</p>
-        <p id="errorDetail" style="color:var(--text-muted);font-size:12px;"></p>
-      </div>
+    <div class="status-msg" id="reviewEnded" role="alert">
+        <div class="msg-icon">⏹</div>
+        <h2>Review session ended</h2>
+        <p>Any unsent annotations were not submitted.</p>
+        <p>You can close this tab.</p>
     </div>
 
-    <!-- Annotation Panel -->
-    <div class="annotation-panel" id="annPanel">
-      <div class="panel-header"><span>Annotations</span><span class="annotation-badge" id="annBadge"><span class="count" id="annCount">0</span> annotations</span></div>
-      <div class="panel-body" id="annList"></div>
+    <!-- Creation Popup -->
+    <div class="floating-toolbar" id="floatingToolbar">
+        <button class="toolbar-action-btn comment" id="tbComment" title="Add comment">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+            </svg>
+        </button>
+        <button class="toolbar-action-btn suggestion" id="tbSuggestion" title="Add suggestion">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+            </svg>
+        </button>
+        <button class="toolbar-action-btn issue" id="tbIssue" title="Add issue">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+            </svg>
+        </button>
+        <button class="toolbar-action-btn praise" id="tbPraise" title="Add praise">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+            </svg>
+        </button>
+        <button class="toolbar-action-btn quicklabel" id="tbQuickLabel" title="Quick label">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+        </button>
+        <div class="divider"></div>
+        <button class="toolbar-action-btn close" id="tbClose" title="Close">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+        </button>
     </div>
-  </div>
-
-  <!-- Bottom Toolbar -->
-  <div class="toolbar">
-    <div class="toolbar-left">
-      <label class="theme-picker">Theme<select class="theme-select" id="themeSelect"></select></label>
-      <label class="feedback-format-picker">Feedback<select class="theme-select" id="feedbackFormatSelect" aria-label="Feedback format"></select></label>
-      <button class="btn-toolbar btn-format" id="btnFeedbackFormats" type="button">Formats…</button>
+    <div class="ql-popover" id="qlPopover">
+        <button class="ql-item" data-ql="delete"><span class="ql-emoji">🗑️</span> Suggest deletion</button>
+        <button class="ql-item" data-ql="praise"><span class="ql-emoji">👍</span> Looks good</button>
+        <button class="ql-item" data-ql="clarify"><span class="ql-emoji">❓</span> Needs Clarification</button>
+        <button class="ql-item" data-ql="missing"><span class="ql-emoji">📋</span> Missing Details</button>
+        <button class="ql-item" data-ql="assumption"><span class="ql-emoji">🔍</span> Verify Assumption</button>
+        <button class="ql-item" data-ql="example"><span class="ql-emoji">🔬</span> Missing Example</button>
+        <button class="ql-item" data-ql="tradeoff"><span class="ql-emoji">⚖️</span> Trade-off Analysis</button>
+        <button class="ql-item" data-ql="over-eng"><span class="ql-emoji">🏗️</span> Over-engineered</button>
+        <button class="ql-item" data-ql="scope"><span class="ql-emoji">🚫</span> Out of Scope</button>
+        <button class="ql-item" data-ql="edge-case"><span class="ql-emoji">⚠️</span> Edge Case Missing</button>
+        <button class="ql-item" data-ql="structure"><span class="ql-emoji">📐</span> Well-structured</button>
     </div>
-    <div class="toolbar-right">
-      <button class="btn-toolbar btn-overall-comment" id="btnFullReviewComment">Full review comment</button>
-      <button class="btn-toolbar btn-feedback" id="btnFeedback" disabled>Send Feedback</button>
-      <button class="btn-toolbar btn-approve" id="btnApprove">Approve without feedback</button>
+    <div class="creation-overlay" id="creationOverlay"></div>
+    <div class="creation-popup" id="creationPopup" style="display:none;">
+        <h3 id="creationTitle">Add Comment</h3>
+        <div class="popup-original-preview" id="popupOriginal"></div>
+        <textarea id="annTextInput" placeholder="Enter comment..." rows="3"></textarea>
+        <div class="popup-actions">
+            <button class="btn btn-secondary" id="popupCancel">Cancel</button>
+            <button class="btn btn-primary" id="popupConfirm" disabled>Add Comment</button>
+        </div>
     </div>
-  </div>
-</div>
 
-<div class="status-msg" id="reviewEnded" role="alert">
-  <div class="msg-icon">⏹</div>
-  <h2>Review session ended</h2>
-  <p>Any unsent annotations were not submitted.</p>
-  <p>You can close this tab.</p>
-</div>
-
-<!-- Creation Popup -->
-<div class="floating-toolbar" id="floatingToolbar">
-  <button class="toolbar-action-btn comment" id="tbComment" title="Add comment">
-    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/></svg>
-  </button>
-  <button class="toolbar-action-btn suggestion" id="tbSuggestion" title="Add suggestion">
-    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
-  </button>
-  <button class="toolbar-action-btn issue" id="tbIssue" title="Add issue">
-    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/></svg>
-  </button>
-  <button class="toolbar-action-btn praise" id="tbPraise" title="Add praise">
-    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z"/></svg>
-  </button>
-  <button class="toolbar-action-btn quicklabel" id="tbQuickLabel" title="Quick label">
-    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-  </button>
-  <div class="divider"></div>
-  <button class="toolbar-action-btn close" id="tbClose" title="Close">
-    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-  </button>
-</div>
-<div class="ql-popover" id="qlPopover">
-  <button class="ql-item" data-ql="delete"><span class="ql-emoji">🗑️</span> Suggest deletion</button>
-  <button class="ql-item" data-ql="praise"><span class="ql-emoji">👍</span> Looks good</button>
-  <button class="ql-item" data-ql="clarify"><span class="ql-emoji">❓</span> Needs Clarification</button>
-  <button class="ql-item" data-ql="missing"><span class="ql-emoji">📋</span> Missing Details</button>
-  <button class="ql-item" data-ql="assumption"><span class="ql-emoji">🔍</span> Verify Assumption</button>
-  <button class="ql-item" data-ql="example"><span class="ql-emoji">🔬</span> Missing Example</button>
-  <button class="ql-item" data-ql="tradeoff"><span class="ql-emoji">⚖️</span> Trade-off Analysis</button>
-  <button class="ql-item" data-ql="over-eng"><span class="ql-emoji">🏗️</span> Over-engineered</button>
-  <button class="ql-item" data-ql="scope"><span class="ql-emoji">🚫</span> Out of Scope</button>
-  <button class="ql-item" data-ql="edge-case"><span class="ql-emoji">⚠️</span> Edge Case Missing</button>
-  <button class="ql-item" data-ql="structure"><span class="ql-emoji">📐</span> Well-structured</button>
-</div>
-<div class="creation-overlay" id="creationOverlay"></div>
-<div class="creation-popup" id="creationPopup" style="display:none;">
-  <h3 id="creationTitle">Add Comment</h3>
-  <div class="popup-original-preview" id="popupOriginal"></div>
-  <textarea id="annTextInput" placeholder="Enter comment..." rows="3"></textarea>
-  <div class="popup-actions">
-    <button class="btn btn-secondary" id="popupCancel">Cancel</button>
-    <button class="btn btn-primary" id="popupConfirm" disabled>Add Comment</button>
-  </div>
-</div>
-
-<!-- Feedback Format Dialog -->
-<div class="format-overlay" id="formatOverlay">
-  <div class="format-dialog" role="dialog" aria-modal="true" aria-labelledby="formatTitle">
-    <h3 id="formatTitle">Custom feedback format</h3>
-    <label>Name<input id="formatName" maxlength="50" autocomplete="off"></label>
-    <label>Context lines before and after selection<input id="formatContextLines" type="number" min="0" max="100" step="1" value="0"></label>
-    <label>Template<textarea id="formatTemplate" rows="12" spellcheck="false"></textarea></label>
-    <details open>
-      <summary>Available template blocks and placeholders</summary>
-      <p><code>{{#annotations}}…{{/annotations}}</code> repeats for each annotation. Group with <code>{{#sources}}…{{/sources}}</code> or <code>{{#fullReview}}…{{/fullReview}}</code>.</p>
-      <p>Global: <code>annotationCount</code>, <code>sourceCount</code>, <code>issueCount</code>, <code>suggestionCount</code>, <code>commentCount</code>, <code>praiseCount</code>, <code>contextLines</code>, <code>ending</code>.</p>
-      <p>Inside annotations: <code>id</code>, <code>type</code>, <code>label</code>, <code>text</code>, <code>scope</code>, <code>target</code>, <code>sourceTitle</code>, <code>sourceInfo</code>, <code>originalText</code>, <code>context</code>, <code>location</code>. <code>context</code> is the selection plus the configured surrounding lines.</p>
-    </details>
-    <label>Exact message preview<pre id="formatPreview" aria-live="polite"></pre></label>
-    <div class="format-actions">
-      <button class="btn btn-danger" id="formatDelete" type="button">Delete</button>
-      <span></span>
-      <button class="btn btn-secondary" id="formatCancel" type="button">Cancel</button>
-      <button class="btn btn-primary" id="formatSave" type="button">Save format</button>
+    <!-- Feedback Format Dialog -->
+    <div class="format-overlay" id="formatOverlay">
+        <div class="format-dialog" role="dialog" aria-modal="true" aria-labelledby="formatTitle">
+            <h3 id="formatTitle">Custom feedback format</h3>
+            <label>Name<input id="formatName" maxlength="50" autocomplete="off"></label>
+            <label>Context lines before and after selection<input id="formatContextLines" type="number" min="0"
+                    max="100" step="1" value="0"></label>
+            <label>Template<textarea id="formatTemplate" rows="12" spellcheck="false"></textarea></label>
+            <details open>
+                <summary>Available template blocks and placeholders</summary>
+                <p><code>{{#annotations}}…{{/annotations}}</code> repeats for each annotation. Group with
+                    <code>{{#sources}}…{{/sources}}</code> or <code>{{#fullReview}}…{{/fullReview}}</code>.</p>
+                <p>Global: <code>annotationCount</code>, <code>sourceCount</code>, <code>issueCount</code>,
+                    <code>suggestionCount</code>, <code>commentCount</code>, <code>praiseCount</code>,
+                    <code>contextLines</code>, <code>ending</code>.</p>
+                <p>Inside annotations: <code>id</code>, <code>type</code>, <code>label</code>, <code>text</code>,
+                    <code>scope</code>, <code>target</code>, <code>sourceTitle</code>, <code>sourceInfo</code>,
+                    <code>originalText</code>, <code>context</code>, <code>location</code>. <code>context</code> is the
+                    selection plus the configured surrounding lines.</p>
+            </details>
+            <label>Exact message preview<pre id="formatPreview" aria-live="polite"></pre></label>
+            <div class="format-actions">
+                <button class="btn btn-danger" id="formatDelete" type="button">Delete</button>
+                <span></span>
+                <button class="btn btn-secondary" id="formatCancel" type="button">Cancel</button>
+                <button class="btn btn-primary" id="formatSave" type="button">Save format</button>
+            </div>
+        </div>
     </div>
-  </div>
-</div>
 
-<!-- Confirm Dialog -->
-<div class="confirm-overlay" id="confirmOverlay">
-  <div class="confirm-dialog">
-    <h3 id="confirmTitle">Confirm</h3>
-    <p id="confirmMessage">Are you sure?</p>
-    <div class="confirm-actions">
-      <button class="btn btn-secondary" id="confirmCancel">Cancel</button>
-      <button class="btn btn-danger" id="confirmOk">Delete</button>
+    <!-- Confirm Dialog -->
+    <div class="confirm-overlay" id="confirmOverlay">
+        <div class="confirm-dialog">
+            <h3 id="confirmTitle">Confirm</h3>
+            <p id="confirmMessage">Are you sure?</p>
+            <div class="confirm-actions">
+                <button class="btn btn-secondary" id="confirmCancel">Cancel</button>
+                <button class="btn btn-danger" id="confirmOk">Delete</button>
+            </div>
+        </div>
     </div>
-  </div>
-</div>
 
-<!-- Submitted Banner -->
-<div class="submitted-banner" id="submittedBanner">✓ Feedback submitted successfully</div>
+    <!-- Submitted Banner -->
+    <div class="submitted-banner" id="submittedBanner">✓ Feedback submitted successfully</div>
 
-<script src="/assets/diff2html-ui.js"></script>
-<script src="/assets/diff-viewer.js"></script>
-  <script>
-    /* Server injects the annotation plan into ANNOTATE_DATA below */
-    window.ANNOTATE_DATA = (function() {
-      try {
-        return JSON.parse('__ANNOTATE_DATA__');
-      } catch(e) {
-        return { sessionToken: '', mode: 'annotate', sourceInfo: null, gate: false, startedAt: Date.now() };
-      }
-    })();
-  </script>
-  <script src="/assets/annotate.js"></script>
+    <script src="/assets/diff2html-ui.js"></script>
+    <script src="/assets/diff-viewer.js"></script>
+    <script>
+        /* Server injects the annotation plan into ANNOTATE_DATA below */
+        window.ANNOTATE_DATA = (function () {
+            try {
+                return JSON.parse('__ANNOTATE_DATA__');
+            } catch (e) {
+                return {sessionToken: '', mode: 'annotate', sourceInfo: null, gate: false, startedAt: Date.now()};
+            }
+        })();
+    </script>
+    <script src="/assets/annotate.js"></script>
 </body>
+
 </html>
