@@ -13,6 +13,11 @@
   let planData = null;
   let nextAnnId = 0;
   let healthTimer = null;
+  let feedbackFormatId = 'detailed';
+  let customFeedbackFormats = [];
+  let editingFeedbackFormatId = null;
+  let formatPreviewTimer = null;
+  let formatPreviewRequest = 0;
 
   /* ===== Utility Functions ===== */
   function escapeHtml(str) {
@@ -250,6 +255,7 @@
     updateBadge();
     highlightAnnotations();
     updateButtons();
+    if (document.getElementById('formatOverlay').classList.contains('active')) scheduleFormatPreview();
   }
 
   function updateBadge() {
@@ -630,6 +636,7 @@
 
   async function submitFeedback() {
     const body = {
+      formatId: feedbackFormatId,
       annotations: annotations.map(a => ({
         id: a.id,
         type: a.type,
@@ -651,6 +658,165 @@
   async function submitExit() {
     await postJson('/api/exit', {});
   }
+
+  /* ===== Feedback Formats ===== */
+
+  function builtInFeedbackFormats() {
+    return (Array.isArray(ANNOTATE_DATA.feedbackFormats) ? ANNOTATE_DATA.feedbackFormats : []).filter(function(format) {
+      return format && typeof format.id === 'string' && typeof format.name === 'string' && typeof format.template === 'string';
+    });
+  }
+
+  function allFeedbackFormats() {
+    return builtInFeedbackFormats().concat(customFeedbackFormats);
+  }
+
+  function populateFeedbackFormats() {
+    const select = document.getElementById('feedbackFormatSelect');
+    select.replaceChildren();
+    [['Built in', builtInFeedbackFormats()], ['Your formats', customFeedbackFormats]].forEach(function(group) {
+      if (!group[1].length) return;
+      const options = document.createElement('optgroup');
+      options.label = group[0];
+      group[1].forEach(function(format) {
+        const option = document.createElement('option');
+        option.value = format.id;
+        option.textContent = format.name;
+        option.title = format.description || '';
+        options.appendChild(option);
+      });
+      select.appendChild(options);
+    });
+    if (!allFeedbackFormats().some(function(format) { return format.id === feedbackFormatId; })) feedbackFormatId = 'detailed';
+    select.value = feedbackFormatId;
+  }
+
+  async function saveFeedbackPreferences(update) {
+    const response = await fetch('/api/preferences', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(update)
+    });
+    const saved = await response.json();
+    if (!response.ok) throw new Error(saved.error || 'Could not save feedback format');
+    customFeedbackFormats = saved.feedbackFormats;
+    feedbackFormatId = saved.feedbackFormat;
+    populateFeedbackFormats();
+  }
+
+  function previewAnnotations() {
+    if (annotations.length) return annotations;
+    const source = planData && planData.documents && planData.documents[0];
+    const selectedText = source && source.markdown && source.markdown.split(/\r?\n/).find(function(line) { return line.trim(); });
+    const previewText = selectedText ? selectedText.trim().slice(0, 80) : 'The system handles the request.';
+    const previewStart = source && source.markdown ? Math.max(0, source.markdown.indexOf(previewText)) : 0;
+    return [{
+      id: 'preview-suggestion', type: 'suggestion', scope: 'selection', documentId: source ? source.id : null,
+      text: 'Add a concrete example.', originalText: previewText,
+      range: { startOffset: previewStart, endOffset: previewStart + previewText.length, textPreview: previewText }, createdAt: Date.now()
+    }, {
+      id: 'preview-comment', type: 'comment', scope: 'overall', documentId: null,
+      text: 'Keep the revision concise.', originalText: '', range: null, createdAt: Date.now()
+    }];
+  }
+
+  function scheduleFormatPreview() {
+    clearTimeout(formatPreviewTimer);
+    const request = ++formatPreviewRequest;
+    formatPreviewTimer = setTimeout(async function() {
+      const preview = document.getElementById('formatPreview');
+      preview.classList.remove('error');
+      preview.textContent = 'Formatting…';
+      try {
+        const response = await postJson('/api/feedback-preview', {
+          annotations: previewAnnotations(),
+          template: document.getElementById('formatTemplate').value,
+          contextLines: Number(document.getElementById('formatContextLines').value)
+        });
+        if (request === formatPreviewRequest) preview.textContent = response.feedback;
+      } catch (err) {
+        if (request === formatPreviewRequest) {
+          preview.classList.add('error');
+          preview.textContent = err.message;
+        }
+      }
+    }, 150);
+  }
+
+  function openFormatDialog() {
+    const format = allFeedbackFormats().find(function(candidate) { return candidate.id === feedbackFormatId; }) || builtInFeedbackFormats()[0];
+    if (!format) return;
+    const custom = customFeedbackFormats.some(function(candidate) { return candidate.id === format.id; });
+    editingFeedbackFormatId = custom ? format.id : null;
+    document.getElementById('formatName').value = custom ? format.name : format.name + ' copy';
+    document.getElementById('formatContextLines').value = format.contextLines || 0;
+    document.getElementById('formatTemplate').value = format.template;
+    document.getElementById('formatDelete').style.visibility = custom ? 'visible' : 'hidden';
+    document.getElementById('formatSave').textContent = custom ? 'Save format' : 'Save copy';
+    document.getElementById('formatOverlay').classList.add('active');
+    document.getElementById('formatName').focus();
+    scheduleFormatPreview();
+  }
+
+  function closeFormatDialog() {
+    document.getElementById('formatOverlay').classList.remove('active');
+    clearTimeout(formatPreviewTimer);
+    formatPreviewRequest++;
+  }
+
+  async function saveFormatDialog() {
+    const name = document.getElementById('formatName').value.trim();
+    const template = document.getElementById('formatTemplate').value;
+    const contextLines = Number(document.getElementById('formatContextLines').value);
+    if (!name || !template.trim()) return alert('A name and template are required.');
+    if (!Number.isInteger(contextLines) || contextLines < 0 || contextLines > 100) return alert('Context lines must be between 0 and 100.');
+    const id = editingFeedbackFormatId || 'custom:' + (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36));
+    const next = customFeedbackFormats.filter(function(format) { return format.id !== id; }).concat([{ id: id, name: name, template: template, contextLines: contextLines }]);
+    try {
+      await saveFeedbackPreferences({ feedbackFormats: next, feedbackFormat: id });
+      closeFormatDialog();
+    } catch (err) { alert(err.message); }
+  }
+
+  async function deleteFormatDialog() {
+    if (!editingFeedbackFormatId || !window.confirm('Delete this saved feedback format?')) return;
+    try {
+      await saveFeedbackPreferences({
+        feedbackFormats: customFeedbackFormats.filter(function(format) { return format.id !== editingFeedbackFormatId; }),
+        feedbackFormat: 'detailed'
+      });
+      closeFormatDialog();
+    } catch (err) { alert(err.message); }
+  }
+
+  async function initFeedbackFormats() {
+    try {
+      const response = await fetch('/api/preferences');
+      const saved = await response.json();
+      if (response.ok) {
+        customFeedbackFormats = Array.isArray(saved.feedbackFormats) ? saved.feedbackFormats : [];
+        feedbackFormatId = typeof saved.feedbackFormat === 'string' ? saved.feedbackFormat : 'detailed';
+      }
+    } catch {}
+    populateFeedbackFormats();
+  }
+
+  document.getElementById('feedbackFormatSelect').addEventListener('change', async function() {
+    const previous = feedbackFormatId;
+    feedbackFormatId = this.value;
+    try { await saveFeedbackPreferences({ feedbackFormat: feedbackFormatId }); }
+    catch (err) { feedbackFormatId = previous; populateFeedbackFormats(); alert(err.message); }
+  });
+  document.getElementById('btnFeedbackFormats').addEventListener('click', openFormatDialog);
+  document.getElementById('formatTemplate').addEventListener('input', scheduleFormatPreview);
+  document.getElementById('formatContextLines').addEventListener('input', scheduleFormatPreview);
+  document.getElementById('formatCancel').addEventListener('click', closeFormatDialog);
+  document.getElementById('formatSave').addEventListener('click', saveFormatDialog);
+  document.getElementById('formatDelete').addEventListener('click', deleteFormatDialog);
+  document.getElementById('formatOverlay').addEventListener('mousedown', function(event) {
+    if (event.target === this) closeFormatDialog();
+  });
+  document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape' && document.getElementById('formatOverlay').classList.contains('active')) closeFormatDialog();
+  });
 
   /* ===== Bottom Toolbar Actions ===== */
 
@@ -890,6 +1056,8 @@
       planData = { documents: [{ id: 'demo', kind: 'file', title: '(Demo Mode)', sourceInfo: '(Demo Mode)', markdown: demoPlan,
         html: '<pre class="md-block" data-offset-start="0" data-offset-end="' + demoPlan.length + '"><code>' + escapeHtml(demoPlan) + '</code></pre>', hasChanges: false }] };
     }
+
+    await initFeedbackFormats();
 
     _hoveredBlock = null;
     const documentsDiv = document.getElementById('documents');

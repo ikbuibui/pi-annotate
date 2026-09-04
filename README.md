@@ -36,6 +36,7 @@ Restart pi or run `/reload` to load the extension.
 - **Text Feedback Popups**: Comment, Suggestion, and Issue each open a focused text-entry popup
 - **Three Comment Scopes**: Annotate selected text, add an overall comment for one source section, or add a full-review comment
 - **Feedback Delivery**: Annotations are sent back to the agent as a structured follow-up message
+- **Feedback Formats**: Choose Detailed Markdown, Compact Markdown, or Action list; create named templates with an exact message preview
 - **Restructure Feedback**: Revise and reorganize collected feedback before sending it to the agent
 - **Approve Without Feedback**: When no annotations exist, approve documents directly
 - **Themes**: Select built-in or installed browser palettes from the bottom toolbar
@@ -221,18 +222,23 @@ When you send feedback, the agent receives a structured message like:
 ```
 ## Annotation Feedback
 
-The following feedback was provided for docs/specs/my-design.md:
+The following feedback was provided:
 
-- **suggestion**: Consider adding concrete API design details
+### docs/specs/my-design.md
+
+- **suggestion**: Suggestion
   > Original text: "Communication uses a RESTful API"
+  Consider adding concrete API design details
 
-- **issue**: Error handling strategy is missing
+- **issue**: Issue
   > Original text: "The system will return an error message on failure"
+  Error handling strategy is missing
 
 ### Full review
 
-- **comment**: The response should start with a short summary.
+- **comment**: Comment
   > Applies to: Full review
+  The response should start with a short summary.
 
 Please address the issues above.
 ```
@@ -242,7 +248,23 @@ The ending is context-aware:
 - If there are **suggestions**: "Please revise according to the suggestions above."
 - Otherwise: "Please consider the feedback above."
 
-### Customize the format
+Choose **Detailed Markdown**, **Compact Markdown**, or **Action list** from the **Feedback** selector in the bottom toolbar. **Formats…** opens the template editor. Built-ins can be copied, named, edited, previewed as the exact outgoing message, and saved. Each format can include 0–100 complete lines before and after a selection; the default is `0`, meaning only the selected text. Custom formats and the active selection persist in `~/.pi/agent/pi-annotate/preferences.json` (or `$PI_CODING_AGENT_DIR/pi-annotate/preferences.json`).
+
+A custom template must contain an annotation loop:
+
+```text
+## Review: {{annotationCount}} notes
+
+{{#annotations}}
+- **{{label}}** on {{target}}: {{text}}
+  {{location}}
+  {{context}}
+{{/annotations}}
+```
+
+The editor lists every available placeholder. Use `{{#sources}}…{{/sources}}` to group source-scoped annotation loops and `{{#fullReview}}…{{/fullReview}}` for full-review notes. `{{context}}` contains the selection plus the configured surrounding lines, while `{{contextLines}}` exposes the configured number. Global placeholders provide annotation/source counts and the context-aware `{{ending}}`; annotation placeholders also include IDs, type, text, scope, target, source, excerpt, and location.
+
+### Customize the format in code
 
 `formatFeedback` separates formatting from annotation collection and delivery. Pass only the parts you want to change:
 
@@ -261,6 +283,7 @@ This customizes the built-in grouped text layout while retaining all structured 
 ## Limits
 
 - Max 5MB request body for feedback submission
+- Max 20 saved custom feedback formats and 20,000 characters per template
 - Sessions stay open until feedback, approval, exit, or a normal tab close
 - Prompt and slash-command submission is blocked in the chat that opened a review until it ends
 - One user-started annotation review can be active per chat; separate chats or pi processes can review concurrently

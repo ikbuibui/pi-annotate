@@ -56,6 +56,8 @@
   <div class="toolbar">
     <div class="toolbar-left">
       <label class="theme-picker">Theme<select class="theme-select" id="themeSelect"></select></label>
+      <label class="feedback-format-picker">Feedback<select class="theme-select" id="feedbackFormatSelect" aria-label="Feedback format"></select></label>
+      <button class="btn-toolbar btn-format" id="btnFeedbackFormats" type="button">Formats…</button>
     </div>
     <div class="toolbar-right">
       <button class="btn-toolbar btn-overall-comment" id="btnFullReviewComment">Full review comment</button>
@@ -112,6 +114,29 @@
   <div class="popup-actions">
     <button class="btn btn-secondary" id="popupCancel">Cancel</button>
     <button class="btn btn-primary" id="popupConfirm" disabled>Add Comment</button>
+  </div>
+</div>
+
+<!-- Feedback Format Dialog -->
+<div class="format-overlay" id="formatOverlay">
+  <div class="format-dialog" role="dialog" aria-modal="true" aria-labelledby="formatTitle">
+    <h3 id="formatTitle">Custom feedback format</h3>
+    <label>Name<input id="formatName" maxlength="50" autocomplete="off"></label>
+    <label>Context lines before and after selection<input id="formatContextLines" type="number" min="0" max="100" step="1" value="0"></label>
+    <label>Template<textarea id="formatTemplate" rows="12" spellcheck="false"></textarea></label>
+    <details open>
+      <summary>Available template blocks and placeholders</summary>
+      <p><code>{{#annotations}}…{{/annotations}}</code> repeats for each annotation. Group with <code>{{#sources}}…{{/sources}}</code> or <code>{{#fullReview}}…{{/fullReview}}</code>.</p>
+      <p>Global: <code>annotationCount</code>, <code>sourceCount</code>, <code>issueCount</code>, <code>suggestionCount</code>, <code>commentCount</code>, <code>praiseCount</code>, <code>contextLines</code>, <code>ending</code>.</p>
+      <p>Inside annotations: <code>id</code>, <code>type</code>, <code>label</code>, <code>text</code>, <code>scope</code>, <code>target</code>, <code>sourceTitle</code>, <code>sourceInfo</code>, <code>originalText</code>, <code>context</code>, <code>location</code>. <code>context</code> is the selection plus the configured surrounding lines.</p>
+    </details>
+    <label>Exact message preview<pre id="formatPreview" aria-live="polite"></pre></label>
+    <div class="format-actions">
+      <button class="btn btn-danger" id="formatDelete" type="button">Delete</button>
+      <span></span>
+      <button class="btn btn-secondary" id="formatCancel" type="button">Cancel</button>
+      <button class="btn btn-primary" id="formatSave" type="button">Save format</button>
+    </div>
   </div>
 </div>
 

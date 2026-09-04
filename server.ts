@@ -7,9 +7,9 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { randomUUID } from "node:crypto";
 import MarkdownIt, { type RendererRule } from "markdown-it";
 import hljs from "highlight.js/lib/common";
-import type { Annotation, AnnotationDocument } from "./feedback-format.js";
+import { BUILTIN_FEEDBACK_FORMATS, feedbackTemplateError, formatFeedbackById, formatFeedbackTemplate, type Annotation, type AnnotationDocument } from "./feedback-format.js";
 import { renderTurnFileDiffHtml } from "./diff/render.js";
-import { loadPreferences, savePreferences } from "./preferences.js";
+import { loadPreferences, savePreferences, validFeedbackFormats } from "./preferences.js";
 import type { BrowserTheme } from "./theme.js";
 
 export type { Annotation } from "./feedback-format.js";
@@ -119,9 +119,13 @@ function parseJsonBody(req: IncomingMessage): Promise<unknown> {
 
 function safeInlineJSON(data: unknown): string {
   return JSON.stringify(data)
+    .replace(/\\/g, "\\\\")
+    .replace(/'/g, "\\'")
     .replace(/</g, "\\u003c")
     .replace(/>/g, "\\u003e")
-    .replace(/&/g, "\\u0026");
+    .replace(/&/g, "\\u0026")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
 }
 
 function isMarkdownFile(path: string): boolean {
@@ -240,6 +244,18 @@ export async function startAnnotationServer(
   const renderedDocuments = documents.map(renderDocument);
   const languages = ["unknown", ...hljs.listLanguages().sort()];
   const sessionToken = randomUUID();
+  const feedbackSources = documents;
+
+  function renderFeedback(annotations: Annotation[], formatId: unknown, template?: unknown, contextLines?: unknown): string | null {
+    if (template !== undefined) {
+      if (feedbackTemplateError(template) || !Number.isInteger(contextLines) || (contextLines as number) < 0 || (contextLines as number) > 100) return null;
+      return formatFeedbackTemplate(template as string, annotations, feedbackSources, contextLines as number);
+    }
+    const preferences = loadPreferences(preferencePath);
+    const selected = typeof formatId === "string" ? formatId : preferences.feedbackFormat;
+    if (![...BUILTIN_FEEDBACK_FORMATS, ...preferences.feedbackFormats].some(({ id }) => id === selected)) return null;
+    return formatFeedbackById(selected, annotations, feedbackSources, preferences.feedbackFormats);
+  }
 
   let resolved = false;
   let resolveDecision!: (result: {
@@ -278,6 +294,7 @@ export async function startAnnotationServer(
           mode,
           gate: gate ?? false,
           themes,
+          feedbackFormats: BUILTIN_FEEDBACK_FORMATS,
           startedAt: Date.now(),
         });
         const html = htmlContent.replace("__ANNOTATE_DATA__", inlineData);
@@ -303,16 +320,28 @@ export async function startAnnotationServer(
           sendJson(res, 400, { ok: false, error: "Preferences must be an object" });
           return;
         }
-        const { diffStyle, ignoreWhitespace } = payload as { diffStyle?: unknown; ignoreWhitespace?: unknown };
+        const { diffStyle, ignoreWhitespace, feedbackFormat, feedbackFormats } = payload as { diffStyle?: unknown; ignoreWhitespace?: unknown; feedbackFormat?: unknown; feedbackFormats?: unknown };
         if ((diffStyle !== undefined && diffStyle !== "unified" && diffStyle !== "side-by-side")
           || (ignoreWhitespace !== undefined && typeof ignoreWhitespace !== "boolean")
-          || (diffStyle === undefined && ignoreWhitespace === undefined)) {
+          || (feedbackFormats !== undefined && !validFeedbackFormats(feedbackFormats))
+          || (feedbackFormat !== undefined && typeof feedbackFormat !== "string")
+          || (diffStyle === undefined && ignoreWhitespace === undefined && feedbackFormat === undefined && feedbackFormats === undefined)) {
           sendJson(res, 400, { ok: false, error: "Invalid preferences" });
+          return;
+        }
+        const current = loadPreferences(preferencePath);
+        const nextFormats = feedbackFormats === undefined ? current.feedbackFormats : feedbackFormats;
+        const availableIds = new Set([...BUILTIN_FEEDBACK_FORMATS.map(({ id }) => id), ...nextFormats.map(({ id }) => id)]);
+        const selected = feedbackFormat === undefined ? current.feedbackFormat : feedbackFormat;
+        if (!availableIds.has(selected)) {
+          sendJson(res, 400, { ok: false, error: "Unknown feedback format" });
           return;
         }
         sendJson(res, 200, { ok: true, ...savePreferences({
           ...(diffStyle === undefined ? {} : { diffStyle }),
           ...(ignoreWhitespace === undefined ? {} : { ignoreWhitespace }),
+          feedbackFormat: selected,
+          feedbackFormats: nextFormats,
         }, preferencePath) });
         return;
       }
@@ -362,6 +391,18 @@ export async function startAnnotationServer(
         return;
       }
 
+      if (method === "POST" && url.pathname === "/api/feedback-preview") {
+        const payload = await parseJsonBody(req) as Record<string, unknown>;
+        const annotations = Array.isArray(payload.annotations) ? payload.annotations as Annotation[] : [];
+        const feedback = renderFeedback(annotations, payload.formatId, payload.template, payload.contextLines);
+        if (feedback === null) {
+          sendJson(res, 400, { ok: false, error: "Invalid feedback format" });
+          return;
+        }
+        sendJson(res, 200, { ok: true, feedback });
+        return;
+      }
+
       if (method === "POST" && url.pathname === "/api/feedback") {
         let body: unknown;
         try {
@@ -381,14 +422,14 @@ export async function startAnnotationServer(
         }
 
         const payload = body as Record<string, unknown>;
-        const feedback = typeof payload.feedback === "string" ? payload.feedback : "";
         const annotations = Array.isArray(payload.annotations) ? payload.annotations as Annotation[] : [];
+        const feedback = typeof payload.feedback === "string" ? payload.feedback : renderFeedback(annotations, payload.formatId);
+        if (feedback === null) {
+          sendJson(res, 400, { ok: false, error: "Invalid feedback format" });
+          return;
+        }
 
-        resolveOnce({
-          action: "feedback",
-          feedback,
-          annotations,
-        });
+        resolveOnce({ action: "feedback", feedback, annotations });
 
         sendJson(res, 200, { ok: true });
         return;

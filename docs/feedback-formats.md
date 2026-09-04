@@ -1,8 +1,8 @@
 # Feedback format options
 
-## Current format (active)
+## Detailed Markdown (default)
 
-`formatAnnotationFeedback` in `feedback-format.ts` is the single formatter used when the annotation UI sends feedback. It preserves the existing Markdown follow-up:
+`formatFeedback` in `feedback-format.ts` produces the default Markdown follow-up:
 
 ```md
 ## Annotation Feedback
@@ -34,7 +34,27 @@ The model receives this one follow-up message in the existing pi session. It doe
 
 Use the hybrid format when evidence shows the current previews are insufficient: keep readable Markdown, add each annotation's stable ID and source range, include a bounded source excerpt, and state the requested action explicitly. Keep the document itself out of the message; the agent can read the named file when it needs wider context.
 
-## Customization
+## Browser customization
+
+The bottom toolbar's **Feedback** selector includes Detailed Markdown, Compact Markdown, and Action list. **Formats…** copies a built-in or edits the selected custom format. The dialog shows all available template blocks/placeholders, a per-format context setting, and an exact preview using current annotations (or sample annotations when the review is empty). Context is measured in complete lines before and after a selection, from 0–100; `0` keeps only the selected text.
+
+Named templates and the active selection are stored in `~/.pi/agent/pi-annotate/preferences.json` or `$PI_CODING_AGENT_DIR/pi-annotate/preferences.json`. Templates must contain `{{#annotations}}…{{/annotations}}`. They can optionally nest annotation loops inside `{{#sources}}…{{/sources}}` and `{{#fullReview}}…{{/fullReview}}` blocks.
+
+```text
+## Review: {{annotationCount}} notes
+
+{{#annotations}}
+- **{{label}}** on {{target}}: {{text}}
+  {{location}}
+  {{context}}
+{{/annotations}}
+```
+
+Inside an annotation loop, `{{context}}` contains the selection and configured surrounding lines. The global `{{contextLines}}` placeholder contains the configured number.
+
+The server renders both previews and submitted messages, so the preview is the exact outgoing follow-up. Unknown placeholders, malformed blocks, duplicate names/IDs, context outside 0–100 lines, more than 20 custom formats, and templates over 20,000 characters are rejected.
+
+## Code customization
 
 `formatFeedback(annotations, sources, overrides)` keeps feedback formatting independent of annotation collection and delivery. Override only the callbacks you need:
 

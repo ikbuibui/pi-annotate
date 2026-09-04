@@ -6,7 +6,7 @@ import test from "node:test";
 import vm from "node:vm";
 import { gzipSync } from "node:zlib";
 import { CombinedAutocompleteProvider } from "@earendil-works/pi-tui";
-import { formatFeedback, type FeedbackFormatter } from "./feedback-format.js";
+import { BUILTIN_FEEDBACK_FORMATS, feedbackTemplateError, formatFeedback, formatFeedbackById, formatFeedbackTemplate, type FeedbackFormatter } from "./feedback-format.js";
 import { AnnotationTreeSelector, handleAnnotationDecision, parseAnnotationPaths, readAnnotationDocuments, type AnnotationTreeSelection } from "./index.js";
 import { getAnnotationCandidates, getInitialAnnotationCandidateIndex } from "./message-tree.js";
 import { ReviewGate, handleReviewTerminalInput } from "./review-gate.js";
@@ -196,10 +196,11 @@ test("persists diff preferences across review servers", async () => {
   const directory = mkdtempSync(join(tmpdir(), "pi-annotate-"));
   const preferencePath = join(directory, "preferences.json");
   const options = { documents: [document("one")], htmlContent: "", mode: "annotate" as const, preferencePath };
+  const defaults = { diffStyle: "side-by-side", ignoreWhitespace: true, feedbackFormat: "detailed", feedbackFormats: [] };
   try {
     const first = await startAnnotationServer(options);
     try {
-      assert.deepEqual(await (await fetch(`${first.url}/api/preferences`)).json(), { diffStyle: "side-by-side", ignoreWhitespace: true });
+      assert.deepEqual(await (await fetch(`${first.url}/api/preferences`)).json(), defaults);
       assert.equal((await fetch(`${first.url}/api/preferences`, { method: "PUT", body: JSON.stringify({ diffStyle: "invalid" }) })).status, 400);
       assert.equal((await fetch(`${first.url}/api/preferences`, { method: "PUT", body: JSON.stringify({ ignoreWhitespace: "invalid" }) })).status, 400);
       assert.equal((await fetch(`${first.url}/api/preferences`, { method: "PUT", body: JSON.stringify({ diffStyle: "unified", ignoreWhitespace: false }) })).status, 200);
@@ -207,19 +208,19 @@ test("persists diff preferences across review servers", async () => {
 
     const second = await startAnnotationServer(options);
     try {
-      assert.deepEqual(await (await fetch(`${second.url}/api/preferences`)).json(), { diffStyle: "unified", ignoreWhitespace: false });
+      assert.deepEqual(await (await fetch(`${second.url}/api/preferences`)).json(), { ...defaults, diffStyle: "unified", ignoreWhitespace: false });
     } finally { second.stop(); }
 
     writeFileSync(preferencePath, JSON.stringify({ diffStyle: "unified" }));
     const third = await startAnnotationServer(options);
     try {
-      assert.deepEqual(await (await fetch(`${third.url}/api/preferences`)).json(), { diffStyle: "unified", ignoreWhitespace: true });
+      assert.deepEqual(await (await fetch(`${third.url}/api/preferences`)).json(), { ...defaults, diffStyle: "unified" });
     } finally { third.stop(); }
 
     writeFileSync(preferencePath, "not json");
     const fourth = await startAnnotationServer(options);
     try {
-      assert.deepEqual(await (await fetch(`${fourth.url}/api/preferences`)).json(), { diffStyle: "side-by-side", ignoreWhitespace: true });
+      assert.deepEqual(await (await fetch(`${fourth.url}/api/preferences`)).json(), defaults);
     } finally { fourth.stop(); }
   } finally {
     rmSync(directory, { recursive: true, force: true });
@@ -355,12 +356,24 @@ test("loads the Diff2Html UI highlighter before mounting diffs", () => {
   // server.ts replaces this token with a string .replace (single occurrence), so it must appear exactly once.
   assert.strictEqual((page.match(/__ANNOTATE_DATA__/g) ?? []).length, 1);
   assert.match(page, /<label class="theme-picker">Theme<select class="theme-select" id="themeSelect">/);
+  assert.match(page, /id="feedbackFormatSelect" aria-label="Feedback format"/);
+  assert.match(page, /id="btnFeedbackFormats"[^>]*>Formats…<\/button>/);
+  assert.match(page, /id="formatContextLines" type="number" min="0" max="100"/);
+  assert.match(page, /Available template blocks and placeholders/);
+  assert.match(page, /<code>context<\/code> is the selection plus the configured surrounding lines/);
+  assert.match(page, /id="formatPreview" aria-live="polite"/);
   assert.doesNotMatch(page, /Ctrl.*Shift.*Theme/);
   assert.match(page, /<div class="panel-header"><span>Annotations<\/span><span class="annotation-badge" id="annBadge">/);
   assert.match(page, /id="btnFullReviewComment">Full review comment<\/button>/);
   assert.match(css, /\.annotation-document \{ margin-bottom: 32px; border: 1px solid var\(--border-light\);/);
   assert.match(css, /\.toolbar-left, \.theme-picker \{\s+display: flex;\s+align-items: center;/);
   assert.match(js, /ANNOTATE_DATA\.themes/);
+  assert.match(js, /ANNOTATE_DATA\.feedbackFormats/);
+  assert.match(js, /postJson\('\/api\/feedback-preview'/);
+  assert.match(js, /feedbackFormats: next, feedbackFormat: id/);
+  assert.match(js, /formatId: feedbackFormatId/);
+  assert.match(js, /contextLines: Number\(document\.getElementById\('formatContextLines'\)\.value\)/);
+  assert.doesNotMatch(js, /pi-annotate-feedback-format/);
   assert.doesNotMatch(js, /themeKeydown/);
   assert.match(js, /\.diff-viewer tr\[data-diff-path\]/);
   assert.match(js, /Overall comment for this section/);
@@ -448,6 +461,59 @@ test("formats annotations by document order and full review", () => {
   assert.match(feedback, /> src\/app.ts:8-12 \(current\)/);
   assert.match(feedback, /> Applies to: Full review/);
   assert.match(feedback, /Please address the issues above\./);
+});
+
+test("renders and validates named feedback templates", () => {
+  const sources = [{ id: "source", title: "Source", sourceInfo: "src/app.ts" }];
+  const annotations = [
+    { id: "item", type: "suggestion" as const, scope: "selection" as const, documentId: "source", text: "Use a named constant", originalText: "42", range: { startOffset: 0, endOffset: 2, textPreview: "42" }, createdAt: 0 },
+    { id: "full", type: "comment" as const, scope: "overall" as const, documentId: null, text: "Keep it short", originalText: "", range: null, createdAt: 0 },
+  ];
+  assert.equal(formatFeedbackById("detailed", annotations, sources), formatFeedback(annotations, sources));
+  assert.equal(formatFeedbackTemplate("{{annotationCount}} notes\n{{#annotations}}[{{label}}] {{text}} @ {{target}}\n{{/annotations}}", annotations, sources),
+    "2 notes\n[Suggestion] Use a named constant @ Source\n\n[Comment] Keep it short @ Full review");
+
+  const markdown = "zero\nbefore\nprefix SELECT suffix\nafter\nlast";
+  const startOffset = markdown.indexOf("SELECT");
+  const contextual = [{ ...annotations[0], documentId: "context", originalText: "SELECT", range: { startOffset, endOffset: startOffset + 6, textPreview: "SELECT" } }];
+  const contextSource = [{ id: "context", title: "Context", sourceInfo: "context.md", markdown }];
+  assert.equal(formatFeedbackTemplate("{{#annotations}}{{context}}{{/annotations}}", contextual, contextSource), "SELECT");
+  assert.equal(formatFeedbackTemplate("{{contextLines}} line\n{{#annotations}}{{context}}{{/annotations}}", contextual, contextSource, 1), "1 line\nbefore\nprefix SELECT suffix\nafter");
+
+  const diffAnnotation = [{ ...contextual[0], range: { ...contextual[0].range, diff: { documentId: "context", path: "app.ts", side: "current" as const, startLine: 2, endLine: 2 } } }];
+  const diffSource = [{ ...contextSource[0], changes: [change("app.ts", "one\nold\nthree\nfour", "one\nnew\nthree\nfour")] }];
+  assert.equal(formatFeedbackTemplate("{{#annotations}}{{context}}{{/annotations}}", diffAnnotation, diffSource, 1), "one\nnew\nthree");
+  assert.equal(feedbackTemplateError("No loop"), "Template must contain an {{#annotations}} block");
+  assert.equal(feedbackTemplateError("{{#annotations}}{{unknown}}{{/annotations}}"), "Unknown placeholder: unknown");
+  assert.equal(feedbackTemplateError("{{#sources}}{{#fullReview}}{{#annotations}}{{text}}{{/annotations}}{{/fullReview}}{{/sources}}"), "fullReview must be a top-level block");
+  assert.deepEqual(BUILTIN_FEEDBACK_FORMATS.map(({ id }) => id), ["detailed", "compact", "actions"]);
+});
+
+test("persists, previews, and submits a selected custom feedback format", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "pi-annotate-formats-"));
+  const preferencePath = join(directory, "preferences.json");
+  const server = await startAnnotationServer({ documents: [document("source", "before\nbad\nafter")], htmlContent: "", mode: "annotate", preferencePath });
+  const format = { id: "custom:brief", name: "Brief", template: "Review notes:\n{{#annotations}}- {{text}}\n{{context}}\n{{/annotations}}", contextLines: 1 };
+  const annotation = { id: "item", type: "issue" as const, scope: "selection" as const, documentId: "source", text: "Fix this", originalText: "bad", range: { startOffset: 7, endOffset: 10, textPreview: "bad" }, createdAt: 0 };
+  try {
+    const saved = await fetch(`${server.url}/api/preferences`, { method: "PUT", body: JSON.stringify({ feedbackFormats: [format], feedbackFormat: format.id }) });
+    assert.equal(saved.status, 200);
+    assert.deepEqual(JSON.parse(readFileSync(preferencePath, "utf-8")).feedbackFormats, [format]);
+    assert.equal((await fetch(`${server.url}/api/preferences`, { method: "PUT", body: JSON.stringify({ feedbackFormats: [{ ...format, template: "invalid" }] }) })).status, 400);
+    assert.equal((await fetch(`${server.url}/api/preferences`, { method: "PUT", body: JSON.stringify({ feedbackFormats: [{ ...format, contextLines: 101 }] }) })).status, 400);
+    assert.equal((await fetch(`${server.url}/api/feedback-preview`, { method: "POST", body: JSON.stringify({ annotations: [annotation], formatId: format.id }) })).status, 200);
+    const draft = await (await fetch(`${server.url}/api/feedback-preview`, { method: "POST", body: JSON.stringify({ annotations: [annotation], template: "{{#annotations}}[{{type}}] {{text}}{{/annotations}}", contextLines: 0 }) })).json() as { feedback: string };
+    assert.equal(draft.feedback, "[issue] Fix this");
+    assert.equal((await fetch(`${server.url}/api/feedback-preview`, { method: "POST", body: JSON.stringify({ annotations: [annotation], template: "invalid", contextLines: 0 }) })).status, 400);
+    assert.equal((await fetch(`${server.url}/api/feedback-preview`, { method: "POST", body: JSON.stringify({ annotations: [annotation], template: format.template, contextLines: 101 }) })).status, 400);
+
+    const submitted = await fetch(`${server.url}/api/feedback`, { method: "POST", body: JSON.stringify({ annotations: [annotation], formatId: format.id }) });
+    assert.equal(submitted.status, 200);
+    assert.deepEqual(await server.waitForDecision(), { action: "feedback", feedback: "Review notes:\n- Fix this\nbefore\nbad\nafter", annotations: [annotation] });
+  } finally {
+    server.stop();
+    rmSync(directory, { recursive: true, force: true });
+  }
 });
 
 test("allows feedback format customization without changing annotation delivery", () => {
@@ -561,8 +627,13 @@ test("served page contains no unreplaced data-injection token", async () => {
     const page = await (await fetch(`${server.url}/`)).text();
     assert.equal((page.match(Template) ?? []).length, 0);
     assert.match(page, /window\.ANNOTATE_DATA = \(function\(\)/);
-    // The injected plan landed in the one surviving placeholder position (sessionToken is a fresh UUID).
-    assert.match(page, /JSON\.parse\('\{"sessionToken":"[0-9a-f-]{36}"/);
+    const bootstrap = page.match(/<script>\s*([\s\S]*?window\.ANNOTATE_DATA[\s\S]*?)<\/script>/)?.[1];
+    assert.ok(bootstrap);
+    const context: { window: { ANNOTATE_DATA?: { sessionToken: string; feedbackFormats: Array<{ id: string; template: string }> } } } = { window: {} };
+    vm.runInNewContext(bootstrap, context);
+    assert.match(context.window.ANNOTATE_DATA!.sessionToken, /^[0-9a-f-]{36}$/);
+    assert.deepEqual(Array.from(context.window.ANNOTATE_DATA!.feedbackFormats, ({ id }) => id), ["detailed", "compact", "actions"]);
+    assert.match(context.window.ANNOTATE_DATA!.feedbackFormats[0].template, /\n{{#sources}}\n/);
   } finally {
     server.stop();
   }
