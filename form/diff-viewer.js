@@ -93,7 +93,7 @@ window.AnnotationDiffViewer = (() => {
       const { diffStyle: savedStyle, ignoreWhitespace: savedIgnoreWhitespace } = await response.json();
       if (response.ok && (savedStyle === 'unified' || savedStyle === 'side-by-side')) diffStyle = savedStyle;
       if (response.ok && typeof savedIgnoreWhitespace === 'boolean') ignoreWhitespace = savedIgnoreWhitespace;
-    } catch {}
+    } catch { }
   }
 
   async function savePreferences(preferences) {

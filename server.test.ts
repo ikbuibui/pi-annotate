@@ -69,7 +69,7 @@ test("review decisions do not replay blocked prompts", () => {
   ] as const) {
     const sent: string[] = [];
     const pi = { sendUserMessage: (content: string) => sent.push(content) };
-    const ctx = { ui: { notify: () => {} } };
+    const ctx = { ui: { notify: () => { } } };
 
     handleAnnotationDecision(pi as never, ctx as never, decision, [{ id: "response", title: "response", sourceInfo: "response" }]);
     assert.deepEqual(sent, expected);
@@ -79,7 +79,7 @@ test("review decisions do not replay blocked prompts", () => {
 test("sends one grouped follow-up for a multi-document review", () => {
   const sent: string[] = [];
   const pi = { sendUserMessage: (content: string) => sent.push(content) };
-  handleAnnotationDecision(pi as never, { ui: { notify: () => {} } } as never, {
+  handleAnnotationDecision(pi as never, { ui: { notify: () => { } } } as never, {
     action: "feedback",
     annotations: [
       { id: "second", type: "issue", scope: "selection", documentId: "second", text: "Fix this", originalText: "bad", range: { startOffset: 0, endOffset: 3, textPreview: "bad" }, createdAt: 0 },
@@ -228,18 +228,26 @@ test("persists diff preferences across review servers", async () => {
 });
 
 test("builds an annotation tree from messages only", () => {
-  const candidates = getAnnotationCandidates([{ entry: {
-    id: "root", parentId: null, type: "message", message: { role: "user", content: "First\nprompt" },
-  }, children: [{ entry: {
-    id: "settings", parentId: "root", type: "custom",
-  }, children: [{ entry: {
-    id: "answer", parentId: "settings", type: "message", message: { role: "assistant", content: [{ type: "text", text: "First answer" }] },
-  }, children: [
-    { entry: { id: "main", parentId: "answer", type: "message", message: { role: "user", content: "Main branch" } }, label: "chosen", children: [
-      { entry: { id: "leaf", parentId: "main", type: "message", message: { role: "toolResult", content: "ignored" } }, children: [] },
-    ] },
-    { entry: { id: "other", parentId: "answer", type: "message", message: { role: "user", content: "Alternate branch" } }, children: [] },
-  ] }] }] }], "leaf");
+  const candidates = getAnnotationCandidates([{
+    entry: {
+      id: "root", parentId: null, type: "message", message: { role: "user", content: "First\nprompt" },
+    }, children: [{
+      entry: {
+        id: "settings", parentId: "root", type: "custom",
+      }, children: [{
+        entry: {
+          id: "answer", parentId: "settings", type: "message", message: { role: "assistant", content: [{ type: "text", text: "First answer" }] },
+        }, children: [
+          {
+            entry: { id: "main", parentId: "answer", type: "message", message: { role: "user", content: "Main branch" } }, label: "chosen", children: [
+              { entry: { id: "leaf", parentId: "main", type: "message", message: { role: "toolResult", content: "ignored" } }, children: [] },
+            ]
+          },
+          { entry: { id: "other", parentId: "answer", type: "message", message: { role: "user", content: "Alternate branch" } }, children: [] },
+        ]
+      }]
+    }]
+  }], "leaf");
 
   assert.deepEqual(candidates.map(({ id, prefix, active, label }) => ({ id, prefix, active, label })), [
     { id: "root", prefix: "", active: true, label: undefined },
@@ -357,13 +365,13 @@ test("loads the Diff2Html UI highlighter before mounting diffs", () => {
   // server.ts replaces this token with a string .replace (single occurrence), so it must appear exactly once.
   assert.strictEqual((page.match(/__ANNOTATE_DATA__/g) ?? []).length, 1);
   assert.match(page, /<label class="theme-picker">Theme<select class="theme-select" id="themeSelect">/);
-  assert.match(page, /id="feedbackFormatSelect" aria-label="Feedback format"/);
+  assert.match(page, /id="feedbackFormatSelect"\s+aria-label="Feedback format"/);
   assert.match(page, /id="btnFeedbackFormats"[^>]*>Formats…<\/button>/);
-  assert.match(page, /id="formatContextLines" type="number" min="0" max="100"/);
+  assert.match(page, /id="formatContextLines" type="number" min="0"\s+max="100"/);
   assert.match(page, /Available template blocks and placeholders/);
-  assert.match(page, /<code>context<\/code> is the selection plus the configured surrounding lines/);
+  assert.match(page, /<code>context<\/code> is the\s+selection plus the configured surrounding lines/);
   assert.match(page, /id="formatPreview" aria-live="polite"/);
-  assert.doesNotMatch(page, /Ctrl.*Shift.*Theme/);
+  assert.doesNotMatch(page, /Ctrl[\s\S]*Shift[\s\S]*Theme/);
   assert.match(page, /<div class="panel-header"><span>Annotations<\/span><span class="annotation-badge" id="annBadge">/);
   assert.match(page, /id="btnFullReviewComment">Full review comment<\/button>/);
   assert.match(page, /id="tbPraise" title="Add praise"/);
@@ -374,8 +382,8 @@ test("loads the Diff2Html UI highlighter before mounting diffs", () => {
   assert.match(js, /updateAnnotationType\(this\.dataset\.typeId, this\.value\)/);
   assert.match(js, /updateAnnotation\(id, textarea\.value, typeSelect\.value\)/);
   assert.match(css, /\.ann-type-tag:focus-visible/);
-  assert.match(css, /\.annotation-document \{ margin-bottom: 32px; border: 1px solid var\(--border-light\);/);
-  assert.match(css, /\.toolbar-left, \.theme-picker \{\s+display: flex;\s+align-items: center;/);
+  assert.match(css, /\.annotation-document\s*\{\s*margin-bottom: 32px;\s*border: 1px solid var\(--border-light\);/);
+  assert.match(css, /\.toolbar-left,\s*\.theme-picker \{\s+display: flex;\s+align-items: center;/);
   assert.match(js, /ANNOTATE_DATA\.themes/);
   assert.match(js, /ANNOTATE_DATA\.feedbackFormats/);
   assert.match(js, /postJson\('\/api\/feedback-preview'/);
@@ -397,7 +405,7 @@ test("loads the Diff2Html UI highlighter before mounting diffs", () => {
   assert.match(js, /highlightAnnotations\(\);/);
   assert.match(js, /isMessage \? 'Message' : 'File'/);
   assert.match(js, /document-collapse-toggle/);
-  assert.match(page, /id="sourceInfo" type="button" aria-expanded="false" aria-controls="sourceMenu"/);
+  assert.match(page, /id="sourceInfo" type="button" aria-expanded="false"\s+aria-controls="sourceMenu"/);
   assert.match(page, /id="sourceMenu" aria-label="Review sources" hidden/);
   assert.match(js, /scrollIntoView\(\{ behavior: 'smooth', block: 'start' \}\)/);
   assert.match(js, /sourceNavigation\.contains\(event\.target\)/);
@@ -414,15 +422,15 @@ test("loads the Diff2Html UI highlighter before mounting diffs", () => {
   assert.match(page, /id="diffIgnoreWhitespace" type="checkbox" checked/);
   const diffCss = readFileSync("form/diff-viewer.css", "utf8");
   const diffViewer = readFileSync("form/diff-viewer.js", "utf8");
-  assert.match(diffCss, /\.diff-viewer \.d2h-code-side-emptyplaceholder, \.diff-viewer \.d2h-emptyplaceholder/);
-  assert.doesNotMatch(diffCss, /d2h-code-side-emptyplaceholder::after|d2h-files-diff :is|position:static|display:table-cell|padding:0 \.5em|d2h-code-line-ctn \{|--diff-row-height|min-height:var\(/);
-  assert.match(diffCss, /\.d2h-diff-table tr \{ position:relative; \}/);
-  assert.match(diffCss, /\.d2h-code-linenumber, \.diff-viewer \.d2h-code-side-linenumber \{ top:0; left:0; \}/);
-  assert.match(diffCss, /\.is-collapsed > \.d2h-file-diff/);
-  assert.match(diffCss, /\.diff-style-toggle \{ display:inline-flex; \}/);
-  assert.match(diffCss, /label \{ display:inline-flex; align-items:center; gap:5px;/);
-  assert.match(diffCss, /\.d2h-tag\.d2h-changed-tag \{ background:var\(--bg-tertiary\); color:var\(--text-primary\); border-color:var\(--border\); \}/);
-  assert.match(diffCss, /\.d2h-code-side-line del, \.diff-viewer \.d2h-code-side-line ins \{ display:inline; margin:0;/);
+  assert.match(diffCss, /\.diff-viewer \.d2h-code-side-emptyplaceholder,\s*\.diff-viewer \.d2h-emptyplaceholder/);
+  assert.doesNotMatch(diffCss, /d2h-code-side-emptyplaceholder::after|d2h-files-diff :is|position:\s*static|display:\s*table-cell|padding:\s*0 \.5em|d2h-code-line-ctn\s*\{|--diff-row-height|min-height:\s*var\(/);
+  assert.match(diffCss, /\.d2h-diff-table tr\s*\{\s*position:\s*relative;\s*\}/);
+  assert.match(diffCss, /\.d2h-code-linenumber,\s*\.diff-viewer \.d2h-code-side-linenumber\s*\{\s*top:\s*0;\s*left:\s*0;\s*\}/);
+  assert.match(diffCss, /\.is-collapsed\s*>\s*\.d2h-file-diff/);
+  assert.match(diffCss, /\.diff-style-toggle\s*\{\s*display:\s*inline-flex;\s*\}/);
+  assert.match(diffCss, /label\s*\{\s*display:\s*inline-flex;\s*align-items:\s*center;\s*gap:\s*5px;/);
+  assert.match(diffCss, /\.d2h-tag\.d2h-changed-tag\s*\{\s*background:\s*var\(--bg-tertiary\);\s*color:\s*var\(--text-primary\);\s*border-color:\s*var\(--border\);\s*\}/);
+  assert.match(diffCss, /\.d2h-code-side-line del,\s*\.diff-viewer \.d2h-code-side-line ins\s*\{\s*display:\s*inline;\s*margin:\s*0;/);
   assert.match(diffViewer, /fetch\('\/api\/preferences'\)/);
   assert.match(diffViewer, /method: 'PUT'/);
   assert.doesNotMatch(diffViewer, /pi-annotate-(?:diff-style|ignore-whitespace)/);
@@ -536,11 +544,11 @@ test("allows feedback format customization without changing annotation delivery"
   assert.equal(formatter([annotation], [{ id: "source", title: "Source", sourceInfo: "src/app.ts" }]), expected);
 
   const sent: string[] = [];
-  handleAnnotationDecision({ sendUserMessage: (content: string) => sent.push(content) } as never, { ui: { notify: () => {} } } as never, { action: "feedback", annotations: [annotation] }, [{ id: "source", title: "Source", sourceInfo: "src/app.ts" }], formatter);
+  handleAnnotationDecision({ sendUserMessage: (content: string) => sent.push(content) } as never, { ui: { notify: () => { } } } as never, { action: "feedback", annotations: [annotation] }, [{ id: "source", title: "Source", sourceInfo: "src/app.ts" }], formatter);
   assert.equal(sent[0], expected);
 
   const jsonFormatter: FeedbackFormatter = (annotations, sources) => JSON.stringify({ annotations, sources });
-  handleAnnotationDecision({ sendUserMessage: (content: string) => sent.push(content) } as never, { ui: { notify: () => {} } } as never, { action: "feedback", annotations: [annotation] }, [{ id: "source", title: "Source", sourceInfo: "src/app.ts" }], jsonFormatter);
+  handleAnnotationDecision({ sendUserMessage: (content: string) => sent.push(content) } as never, { ui: { notify: () => { } } } as never, { action: "feedback", annotations: [annotation] }, [{ id: "source", title: "Source", sourceInfo: "src/app.ts" }], jsonFormatter);
   assert.deepEqual(JSON.parse(sent[1]), { annotations: [annotation], sources: [{ id: "source", title: "Source", sourceInfo: "src/app.ts" }] });
 });
 
@@ -559,7 +567,7 @@ test("empty annotation tree can open a file-only review", () => {
   const theme = { fg: (_: string, text: string) => text, bg: (_: string, text: string) => text, bold: (text: string) => text };
   const keys = { matches: () => false };
   let opened: AnnotationTreeSelection | undefined;
-  const selector = new AnnotationTreeSelector([], theme, keys as never, 5, (selected) => { opened = selected; }, () => {});
+  const selector = new AnnotationTreeSelector([], theme, keys as never, 5, (selected) => { opened = selected; }, () => { });
   selector.handleInput("f");
   assert.deepEqual(opened, { candidates: [], addFiles: true });
 });
@@ -572,7 +580,7 @@ test("tree marks survive filtering and open in tree order", () => {
   const theme = { fg: (_: string, text: string) => text, bg: (_: string, text: string) => text, bold: (text: string) => text };
   const keys = { matches: (data: string, binding: string) => ({ "tui.select.up": data === "up", "tui.select.down": data === "down", "tui.select.confirm": data === "enter", "tui.select.cancel": data === "esc", "tui.editor.deleteCharBackward": data === "backspace" }[binding] ?? false) };
   let opened: AnnotationTreeSelection | undefined;
-  const selector = new AnnotationTreeSelector(candidates, theme, keys as never, 5, (selected) => { opened = selected; }, () => {});
+  const selector = new AnnotationTreeSelector(candidates, theme, keys as never, 5, (selected) => { opened = selected; }, () => { });
   selector.handleInput(" "); // mark focused second
   selector.handleInput("up");
   selector.handleInput(" "); // mark first
@@ -582,17 +590,17 @@ test("tree marks survive filtering and open in tree order", () => {
   selector.handleInput("enter");
   assert.deepEqual(opened, { candidates: [candidates[0], candidates[1]], addFiles: false });
 
-  const searchSelector = new AnnotationTreeSelector(candidates, theme, keys as never, 5, (selected) => { opened = selected; }, () => {});
+  const searchSelector = new AnnotationTreeSelector(candidates, theme, keys as never, 5, (selected) => { opened = selected; }, () => { });
   searchSelector.handleInput("/");
   searchSelector.handleInput("first");
   searchSelector.handleInput("enter");
   assert.deepEqual(opened, { candidates: [candidates[0]], addFiles: false });
 
-  const fileSelector = new AnnotationTreeSelector(candidates, theme, keys as never, 5, (selected) => { opened = selected; }, () => {});
+  const fileSelector = new AnnotationTreeSelector(candidates, theme, keys as never, 5, (selected) => { opened = selected; }, () => { });
   fileSelector.handleInput("f");
   assert.deepEqual(opened, { candidates: [], addFiles: true });
 
-  const markedFileSelector = new AnnotationTreeSelector(candidates, theme, keys as never, 5, (selected) => { opened = selected; }, () => {});
+  const markedFileSelector = new AnnotationTreeSelector(candidates, theme, keys as never, 5, (selected) => { opened = selected; }, () => { });
   markedFileSelector.handleInput(" ");
   markedFileSelector.handleInput("f");
   assert.deepEqual(opened, { candidates: [candidates[1]], addFiles: true });
@@ -635,7 +643,7 @@ test("served page contains no unreplaced data-injection token", async () => {
   try {
     const page = await (await fetch(`${server.url}/`)).text();
     assert.equal((page.match(Template) ?? []).length, 0);
-    assert.match(page, /window\.ANNOTATE_DATA = \(function\(\)/);
+    assert.match(page, /window\.ANNOTATE_DATA = \(function\s*\(\)/);
     const bootstrap = page.match(/<script>\s*([\s\S]*?window\.ANNOTATE_DATA[\s\S]*?)<\/script>/)?.[1];
     assert.ok(bootstrap);
     const context: { window: { ANNOTATE_DATA?: { sessionToken: string; feedbackFormats: Array<{ id: string; template: string }> } } } = { window: {} };
