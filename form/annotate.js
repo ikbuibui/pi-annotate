@@ -843,12 +843,6 @@
 
       applyTheme(localStorage.getItem('pi-annotate-theme') || 'dark');
       select.addEventListener('change', function() { applyTheme(select.value); });
-      document.addEventListener('keydown', function themeKeydown(e) {
-        if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 'l' || e.key === 'L')) {
-          e.preventDefault();
-          applyTheme(names[(names.indexOf(select.value) + 1) % names.length]);
-        }
-      });
     })();
 
     // Approve button: disabled when annotations exist

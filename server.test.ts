@@ -354,11 +354,14 @@ test("loads the Diff2Html UI highlighter before mounting diffs", () => {
     "expected script order: diff2html-ui < diff-viewer < inject < annotate");
   // server.ts replaces this token with a string .replace (single occurrence), so it must appear exactly once.
   assert.strictEqual((page.match(/__ANNOTATE_DATA__/g) ?? []).length, 1);
-  assert.match(page, /id="themeSelect"/);
+  assert.match(page, /<label class="theme-picker">Theme<select class="theme-select" id="themeSelect">/);
+  assert.doesNotMatch(page, /Ctrl.*Shift.*Theme/);
   assert.match(page, /<div class="panel-header"><span>Annotations<\/span><span class="annotation-badge" id="annBadge">/);
   assert.match(page, /id="btnFullReviewComment">Full review comment<\/button>/);
   assert.match(css, /\.annotation-document \{ margin-bottom: 32px; border: 1px solid var\(--border-light\);/);
+  assert.match(css, /\.toolbar-left, \.theme-picker \{\s+display: flex;\s+align-items: center;/);
   assert.match(js, /ANNOTATE_DATA\.themes/);
+  assert.doesNotMatch(js, /themeKeydown/);
   assert.match(js, /\.diff-viewer tr\[data-diff-path\]/);
   assert.match(js, /Overall comment for this section/);
   assert.match(js, /startDocument !== endDocument/);

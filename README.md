@@ -38,7 +38,7 @@ Restart pi or run `/reload` to load the extension.
 - **Feedback Delivery**: Annotations are sent back to the agent as a structured follow-up message
 - **Restructure Feedback**: Revise and reorganize collected feedback before sending it to the agent
 - **Approve Without Feedback**: When no annotations exist, approve documents directly
-- **Themes**: Select built-in or installed browser palettes; `Ctrl+Shift+L` cycles them
+- **Themes**: Select built-in or installed browser palettes from the bottom toolbar
 - **Submit Confirmation**: Shows confirmation after submitting feedback or approving
 
 ## How It Works
@@ -156,10 +156,6 @@ All annotations appear in the right sidebar panel with their source title. Every
 - Edit (✏️) and Delete (🗑️) buttons
 
 ## Keyboard Shortcuts
-
-| Key | Action |
-|-----|--------|
-| `Ctrl+Shift+L` | Cycle installed browser themes |
 
 ### Message selector
 
