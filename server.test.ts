@@ -173,6 +173,50 @@ test("waits for an explicit exit decision", async () => {
   }
 });
 
+test("stopping the server immediately resolves an outstanding decision as exit", async (t) => {
+  const server = await startAnnotationServer({
+    documents: [document("empty")], htmlContent: "", mode: "annotate",
+  });
+  t.after(() => server.stop());
+  let decision: unknown;
+  void server.waitForDecision().then((result) => { decision = result; });
+
+  server.stop();
+  await Promise.resolve();
+  assert.deepEqual(decision, { action: "exit" });
+});
+
+test("repeated stops and late decisions preserve the first cancellation", async (t) => {
+  const server = await startAnnotationServer({
+    documents: [document("empty")], htmlContent: "", mode: "annotate",
+  });
+  t.after(() => server.stop());
+  server.stop();
+  server.stop();
+  server.resolveDecision({ action: "approve" });
+  let decision: unknown;
+  void server.waitForDecision().then((result) => { decision = result; });
+
+  await Promise.resolve();
+  assert.deepEqual(decision, { action: "exit" });
+});
+
+for (const action of ["approve", "feedback", "exit"] as const) {
+  test(`stopping the server preserves an existing ${action} decision`, async (t) => {
+    const server = await startAnnotationServer({
+      documents: [document("empty")], htmlContent: "", mode: "annotate",
+    });
+    t.after(() => server.stop());
+    const decision = { action, feedback: "test" };
+    server.resolveDecision(decision);
+    assert.deepEqual(await server.waitForDecision(), decision);
+
+    server.stop();
+    server.stop();
+    assert.deepEqual(await server.waitForDecision(), decision);
+  });
+}
+
 test("serves ordered documents and document-scoped diffs", async () => {
   const server = await startAnnotationServer({
     documents: [document("first", "# First"), document("second", "# Second", [change("two.ts", "old\n", "new\n")])],

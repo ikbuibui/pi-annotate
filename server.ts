@@ -507,6 +507,7 @@ export async function startAnnotationServer(
   const handle: AnnotationServerHandle = {
     url,
     stop: () => {
+      resolveOnce({ action: "exit" });
       server.close();
     },
     waitForDecision: () => decisionPromise,
